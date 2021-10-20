@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id       Int               @id @default(autoincrement())
+  text     String
+  sessions TaskGameSession[]
+}
+
+model TaskGameSession {
+  user     UserGameSession @relation(fields: [user_id], references: [id])
+  user_id  Int
+  task     Task            @relation(fields: [task_id], references: [id])
+  task_id  Int
+  complete Boolean         @default(false)
+
+  @@id([user_id, task_id])
+}
+
+model User {
+  id       Int               @id @default(autoincrement())
+  name     String
+  sessions UserGameSession[]
+  games    Game[]
+}
+
+model UserGameSession {
+  id       Int               @id @default(autoincrement())
+  game     Game              @relation(fields: [game_id], references: [id])
+  game_id  Int
+  user     User              @relation(fields: [user_id], references: [id])
+  user_id  Int
+  tasks    TaskGameSession[]
+  imposter Boolean           @default(false)
+}
+
+model Game {
+  id              Int               @id @default(autoincrement())
+  code            String
+  owner           User              @relation(fields: [owner_id], references: [id])
+  owner_id        Int
+  users           UserGameSession[]
+  current_session GameSession?
+}
+
+model GameSession {
+  id              Int     @id @default(autoincrement())
+  is_active       Boolean @default(false)
+  tasks_completed Boolean @default(false)
+  game            Game    @relation(fields: [game_id], references: [id])
+  game_id         Int     @unique
+}
