@@ -1,31 +1,76 @@
 import { useState } from 'react';
-import styled, { css } from 'styled-components'
+import { useRouter } from 'next/router';
 import Layout from '../styles/Layout'
 import { Container, Row, Col } from 'styled-bootstrap-grid';
 
-// import prisma from '../lib/prisma';
-import { apiRequest } from '../lib/helpers';
+import { addToQuery, apiRequest } from '../lib/helpers';
+import { Button, Input, Error } from '../styles/shared';
 
-export default function Home() {
-  const [ user, setUser ] = useState();
+
+function Index() {
+  const router = useRouter();
   const [ name, setName] = useState('');
+  const [ gameCode, setGameCode ] = useState('');
   const [ loading, setLoading ] = useState(false);
-  const [ error, setError ] = useState(false)
+  const [ error, setError ] = useState(false);
 
-  async function handleCreateUser() {
-    const res = await apiRequest('/api/new_user', { name });
+  // Get any user details.
+  let user;
 
-    console.log(res)
-    if (res?.name && res?.id) {
-      setUser(res);
-    } else {
-      setError(true);
+  if (router.query) {
+    const { name, id } = router.query;
+
+    if (name && id) {
+      user = { name, id: parseInt(id) };
     }
   }
 
+  async function handleCreateUser() {
+    setLoading(true);
+    const res = await apiRequest('/api/new_user', { name });
+
+    if (res?.name && res?.id) {
+      // Store user details in query params instead?
+      addToQuery(router, res);
+    } else {
+      setError(true);
+    }
+
+    setLoading(false)
+  }
+
   async function handleNewGame() {
-    const user = user?.id
-    const res = await apiRequest('/api/new_game', { user });
+    setLoading(true);
+    const userId = router?.query?.id;
+
+    if (userId) {
+      const res = await apiRequest('/api/new_game', { userId });
+      // Get game code
+      const { code } = res;
+
+      // Navigate to game lobby
+      router.push(
+        {
+          pathname: '/lobby',
+          query: { ...router.query, code }
+        },
+      );
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
+  }
+
+  async function handleJoinGame() {
+    setLoading(true);
+    const userId = router?.query?.id;
+
+    if (userId) {
+      const res = await apiRequest('/api/join_game', { userId });
+    }
+
+    setLoading(false);
   }
 
   return (
@@ -34,15 +79,30 @@ export default function Home() {
         <Row>
           {user ? (
             <>
-              <h2>Welcome {name}</h2>
+              <h2>Welcome {router.query.name}</h2>
 
               <Col xs={6}>
-                <Button onClick={handleNewGame}>
+                <Input
+                  type="text"
+                  placeholder="Game code"
+                  value={gameCode}
+                  onChange={e => setGameCode(e.target.value)}
+                  disabled={loading}
+                  maxLength={6}
+                />
+
+                <Button
+                  onClick={handleJoinGame}
+                  disabled={gameCode?.length !== 6 || loading}
+                >
                   Join Game
                 </Button>
               </Col>
               <Col xs={6}>
-                <Button>
+                <Button
+                  onClick={handleNewGame}
+                  disabled={loading}
+                >
                   New Game
                 </Button>
               </Col>
@@ -66,6 +126,8 @@ export default function Home() {
                 >
                   Submit
                 </Button>
+
+                {error && <Error>Error!</Error>}
               </div>
             )
           }
@@ -75,38 +137,4 @@ export default function Home() {
   )
 }
 
-const controlStyles = `
-  border: 0.25rem solid white;
-  background: black;
-  padding: 1rem;
-  font-size: 1.5rem;
-  width: 100%;
-  max-width: 100%;
-  border-radius: 0.25rem;
-  margin-bottom: 1rem;
-  text-transform: uppercase;
-  color: white;
-
-  &:focus {
-    outline: none;
-  }
-`
-const Input = styled.input`
-  ${controlStyles}
-`;
-
-const Button = styled.button`
-  ${controlStyles}
-`;
-
-// export const getServerSideProps = async () => {
-//   const feed = await prisma.post.findMany({
-//     where: { published: true },
-//     include: {
-//       author: {
-//         select: { name: true },
-//       },
-//     },
-//   });
-//   return { props: { feed } };
-// };
+export default Index;

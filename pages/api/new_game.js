@@ -1,25 +1,41 @@
-import prisma from '../../../lib/prisma';
+import prisma from '../../lib/prisma';
 
 export default async function handle(req, res) {
-  const { user } = req.body;
+  let { userId } = req.body;
 
-  // Create random game code
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const code = new Array(6).map(
-    () => characters[Math.floor(Math.random() * characters.length)]
-  ).join();
+  if (!userId) {
+    res.status(400).json({error: "userId not provided"});
+  } else {
+    userId = parseInt(userId);
+  }
 
-  console.log(code)
-  // TODO - Check code works
+  let gameCreated = false;
 
-  // TODO - Add owner to schema
-
-  const result = await prisma.game.create({
-    data: {
-      code,
-      owner: { connect: { id: user } },
-      // TODO - Create a UserGameSession for the owner
-    },
-  });
-  res.json(result);
+  while (gameCreated === false) {
+    try {
+      // Create random game code
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    
+      const code = [1,2,3,4,5,6].map(
+        () => characters.charAt(Math.floor(Math.random() * characters.length))
+      ).join('');
+    
+      const result = await prisma.game.create({
+        data: {
+          code,
+          owner: { connect: { id: userId } },
+          // TODO - Create a Game for the owner
+          users: [
+            { connect: { id: userId }}
+          ]
+          }
+        },
+      });
+      gameCreated = true;
+  
+      res.json(result);
+    } catch (err) {
+      console.log(err);
+    }
+  }
 }

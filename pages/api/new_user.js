@@ -7,7 +7,5 @@ export default async function handle(req, res) {
     data: { name },
   });
 
-  console.log(result);
-
   res.json(result);
 }
