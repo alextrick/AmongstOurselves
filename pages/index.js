@@ -67,7 +67,18 @@ function Index() {
     const userId = router?.query?.id;
 
     if (userId) {
-      const res = await apiRequest('/api/join_game', { userId });
+      const res = await apiRequest('/api/join_game', { userId, code: gameCode });
+
+      // Get game code
+      const { code } = res;
+
+      // Navigate to game lobby
+      router.push(
+        {
+          pathname: '/lobby',
+          query: { ...router.query, code }
+        },
+      );
     }
 
     setLoading(false);

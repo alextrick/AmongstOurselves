@@ -26,17 +26,27 @@ model TaskGameSession {
 model User {
   id          Int               @id @default(autoincrement())
   name        String
+  games       UserGameConnection[]
+}
+
+model UserGameConnection {
+  id          Int              @id @default(autoincrement())
+  user        User             @relation(fields: [user_id], references: [id])
+  user_id     Int
+  game        Game             @relation(fields: [game_id], references: [id])
+  game_id     Int
+  owner       Boolean           @default(false)
   sessions    UserGameSession[]
-  games       Game[]
-  owned_games Game[]            @relation(name: "owned_game")
+
+  @@unique([user_id, game_id])
 }
 
 model UserGameSession {
   id         Int               @id @default(autoincrement())
   session    GameSession       @relation(fields: [session_id], references: [id])
   session_id Int
-  user       User              @relation(fields: [user_id], references: [id])
-  user_id    Int
+  user       UserGameConnection              @relation(fields: [user_id], references: [id])
+  user_id    Int               
   tasks      TaskGameSession[]
   imposter   Boolean           @default(false)
 }
@@ -44,9 +54,7 @@ model UserGameSession {
 model Game {
   id              Int          @id @default(autoincrement())
   code            String       @unique
-  owner           User         @relation("owned_game", fields: [owner_id], references: [id])
-  owner_id        Int
-  users           User[]
+  users           UserGameConnection[]
   current_session GameSession?
 }
 

@@ -9,33 +9,27 @@ export default async function handle(req, res) {
     userId = parseInt(userId);
   }
 
-  let gameCreated = false;
-
-  while (gameCreated === false) {
-    try {
-      // Create random game code
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    
-      const code = [1,2,3,4,5,6].map(
-        () => characters.charAt(Math.floor(Math.random() * characters.length))
-      ).join('');
-    
-      const result = await prisma.game.create({
-        data: {
-          code,
-          owner: { connect: { id: userId } },
-          // TODO - Create a Game for the owner
-          users: [
-            { connect: { id: userId }}
-          ]
-          }
-        },
-      });
-      gameCreated = true;
+  // Create random game code
+  // There's no protection against collision of this unique
+  // 'code' field but it's unlikely to a be a problem for now
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   
-      res.json(result);
-    } catch (err) {
-      console.log(err);
+  const code = [1,2,3,4,5,6].map(
+    () => characters.charAt(Math.floor(Math.random() * characters.length))
+  ).join('');
+
+  const result = await prisma.game.create({
+    data: {
+      code,
+      // Connect User to Game
+      users: {
+        create: [{
+          user: { connect: { id: userId } },
+          owner: true
+        }]
+      }
     }
-  }
+  });
+
+  res.json(result);
 }
