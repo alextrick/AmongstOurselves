@@ -7,20 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Task {
-  id       Int               @id @default(autoincrement())
-  text     String
-  sessions TaskGameSession[]
-}
+// model Task {
+//   id       Int               @id @default(autoincrement())
+//   text     String
+//   sessions TaskGameSession[]
+// }
 
 model TaskGameSession {
+  id       Int               @id @default(autoincrement())
   user     UserGameSession @relation(fields: [user_id], references: [id])
   user_id  Int
-  task     Task            @relation(fields: [task_id], references: [id])
-  task_id  Int
+  // task     Task            @relation(fields: [task_id], references: [id])
+  // task_id  Int
+  task String
   complete Boolean         @default(false)
-
-  @@id([user_id, task_id])
 }
 
 model User {

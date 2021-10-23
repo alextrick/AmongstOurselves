@@ -9,6 +9,21 @@ export default async function handle(req, res) {
     userId = parseInt(userId);
   }
 
+  // TODO - Get game from code?
+
+  const result = await prisma.gameSession.create({
+    data: {
+      // Create a UserGameConnection for the user and add to game.
+      users: {
+        create: [
+          {
+            user: { connect: { id: userId }}
+          }
+        ]
+      }
+    },
+  });
+
   // TODO - Create a game session
 
   // TODO - Assign a random user as imposter.
