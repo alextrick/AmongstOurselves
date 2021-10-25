@@ -27,13 +27,18 @@ function Index() {
 
   async function handleCreateUser() {
     setLoading(true);
-    const res = await apiRequest('/api/new_user', { name });
 
-    if (res?.name && res?.id) {
-      // Store user details in query params instead?
-      addToQuery(router, res);
-    } else {
-      setError(true);
+    try {
+      const res = await apiRequest('/api/new_user', { name });
+  
+      if (res?.name && res?.id) {
+        // Store user details in query params instead?
+        addToQuery(router, res);
+      } else {
+        setError(true);
+      }
+    } catch (err) {
+      console.log(err);
     }
 
     setLoading(false)

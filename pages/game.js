@@ -10,7 +10,7 @@ import { apiRequest } from '../lib/helpers';
 // Styles
 import { Button, Error } from '../styles/shared';
 
-function Lobby() {
+function Game() {
   const router = useRouter();
   const [ game, setGame ] = useState();
   const [ loading, setLoading ] = useState(false);
@@ -38,13 +38,13 @@ function Lobby() {
     code = router.query.code;
   }
 
-  async function handleStartGame() {
+  async function handleEndGame() {
     setLoading(true);
-    // TODO - Get game id?
+    // TODO - Finish this function
     let gameId;
 
     if (userId) {
-      const res = await apiRequest('/api/start_game', { gameId });
+      const res = await apiRequest('/api/end_game', { gameId });
 
       console.log('start game res', res);
     } else {
@@ -54,18 +54,29 @@ function Lobby() {
   }
 
   useEffect(() => {
-    // Poll lobby state.
+    // Poll game state.
     if (code) {
       const interval = setInterval(async () => {
-        const res = await apiRequest('/api/lobby_state', { code });
-  
-        // Check if lobby state differs
-        if (JSON.stringify(res) !== JSON.stringify(game)) {
-          setGame(res);
-        }
+        // TODO - Swap to game state. Include UserGameSession so all can be done in one query?
+        const res = await apiRequest('/api/game_state', { code }, true);
 
-        // TODO - Redirect to game if is_active
+        console.log(res);
+        // 
+  
+        // Check if game state differs
+        // TODO - TEST noJSON stuff.
+        if (res !== JSON.stringify(game)) {
+          setGame(await res.json());
+        }
       }, 500);
+
+      // TODO - Swap to sabotage screen if sabotage is active
+
+      // TODO - Swap to meeting screen if active.
+
+      // TODO - Swap to victory or loss screen on those states
+
+      // TODO - Redirect back to lobby if game ends.
   
       return () => clearInterval(interval);
     }
@@ -76,23 +87,27 @@ function Lobby() {
       <Container>
           {game && (
             <>
-              <h2>Lobby - {game.code}</h2>
+            {/* TODO - Add nav here with map? */}
+              <h2>Tasks</h2>
 
               {game.users && (
-                <UserList>
+                <TaskList>
                   {game.users.map(({ user }) => (
                       <li>{user.name}</li>
                   ))}
-                </UserList>
+                </TaskList>
               )}
+
+
+              {/* TODO - Add report / meeting buttons here? */}
 
               {isOwner && (
                 <div>
                   <Button
                     disabled={loading}
-                    onClick={handleStartGame}
+                    onClick={handleEndGame}
                   >
-                    Start game
+                    End game
                   </Button>
 
                   {error && <Error>Error!</Error>}
@@ -106,9 +121,9 @@ function Lobby() {
   )
 }
 
-export default Lobby;
+export default Game;
 
-const UserList = styled.ul`
+const TaskList = styled.ul`
   border: 0.25rem solid white;
   border-radius: 0.25rem;
   margin-bottom: 1rem;
