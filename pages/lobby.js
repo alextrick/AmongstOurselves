@@ -40,16 +40,13 @@ function Lobby() {
 
   async function handleStartGame() {
     setLoading(true);
-    // TODO - Get game id?
-    let gameId;
 
-    if (userId) {
-      const res = await apiRequest('/api/start_game', { gameId });
-
-      console.log('start game res', res);
+    if (code) {
+      await apiRequest('/api/start_game', { code });
     } else {
       setError(true);
     }
+
     setLoading(false);
   }
 
@@ -63,13 +60,26 @@ function Lobby() {
         if (JSON.stringify(res) !== JSON.stringify(game)) {
           setGame(res);
         }
-
-        // TODO - Redirect to game if is_active
       }, 500);
   
+
       return () => clearInterval(interval);
     }
   }, [ code, game ]);
+
+  useEffect(() => {
+    if (game) {
+      // Redirect to game page if current session.
+      if (game.current_session?.is_active) {
+        router.push(
+          {
+            pathname: '/game',
+            query: router.query
+          },
+        );
+      }
+    }
+  }, [ game ]);
 
   return (
     <Layout>

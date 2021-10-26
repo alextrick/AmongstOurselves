@@ -9,6 +9,9 @@ export default async function handle(req, res) {
       users: {
         select: { user: true, owner: true },
       },
+      current_session: {
+        select: { is_active: true }
+      }
     },
   });
 

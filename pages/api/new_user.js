@@ -1,11 +1,6 @@
-import { lights } from '../../lib/helpers';
 import prisma from '../../lib/prisma';
 
 export default async function handle(req, res) {
-
-  res.json(lights());
-  return;
-
   const { name } = req.body;
 
   const result = await prisma.user.create({

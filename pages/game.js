@@ -40,16 +40,13 @@ function Game() {
 
   async function handleEndGame() {
     setLoading(true);
-    // TODO - Finish this function
-    let gameId;
 
-    if (userId) {
-      const res = await apiRequest('/api/end_game', { gameId });
-
-      console.log('start game res', res);
+    if (code) {
+      await apiRequest('/api/end_game', { code });
     } else {
       setError(true);
     }
+
     setLoading(false);
   }
 
@@ -58,17 +55,14 @@ function Game() {
     if (code) {
       const interval = setInterval(async () => {
         // TODO - Swap to game state. Include UserGameSession so all can be done in one query?
-        const res = await apiRequest('/api/game_state', { code }, true);
-
-        console.log(res);
-        // 
+        const res = await apiRequest('/api/game_state', { code, userId: user.id });
   
         // Check if game state differs
         // TODO - TEST noJSON stuff.
-        if (res !== JSON.stringify(game)) {
-          setGame(await res.json());
+        if (JSON.stringify(res) !== JSON.stringify(game)) {
+          setGame(res);
         }
-      }, 500);
+      }, 5000);
 
       // TODO - Swap to sabotage screen if sabotage is active
 
@@ -81,6 +75,22 @@ function Game() {
       return () => clearInterval(interval);
     }
   }, [ code, game ]);
+
+  useEffect(() => {
+
+    console.log('game', game);
+    if (game) {
+         // TODO - Redirect back to lobby if game ends.
+      if (!game.current_session) {
+        router.push(
+          {
+            pathname: '/lobby',
+            query: router.query
+          },
+        );
+      }
+    }
+  }, [ game ]);
 
   return (
     <Layout>

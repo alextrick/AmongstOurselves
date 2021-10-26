@@ -3,13 +3,22 @@ import prisma from '../../lib/prisma';
 const IMPOSTER_COUNT = 1;
 const TASK_COUNT = 8;
 
+function createArrayOfRandomIndices(totalIndices, arrayLength) {
+  const randomIndices = [];
+
+  while (randomIndices.length < totalIndices) {
+    randomIndices.push(Math.floor(Math.random() * arrayLength))
+  }
+
+  return randomIndices;
+}
+
 export default async function handle(req, res) {
+  // LATER TODO - Currently anyone can start any game. Lock it down to the owner.
   let { code } = req.body;
 
-  if (!userId && !code) {
+  if (!code) {
     res.status(400).json({error: "Game code not provided"});
-  } else {
-    userId = parseInt(userId);
   }
 
   // Get game from code
@@ -43,71 +52,48 @@ export default async function handle(req, res) {
     'temp task test 18',
     'temp task test 19',
     'temp task test 20',
-  ]
+  ];
 
-  function createArrayOfRandomIndices(totalIndices, arrayLength) {
-    const randomIndices = [];
-
-    while (randomIndices.length < TASK_COUNT) {
-      randomIndices.push(Math.floor(Math.random * tasks.length))
-    }
-
-    return randomIndices;
-  }
-
-  // TODO - Get random ints for imposters
-  // TODO - Check this works
+  // Get an array of random indexes of the users to select as the imposter(s)
   const imposterIndices = createArrayOfRandomIndices(IMPOSTER_COUNT, game.users.length);
-
-  console.log('imposterIndices', imposterIndices)
   
   const userSessions = game.users.map(({ user }, index) => {
-    // TODO - Create random set of tasks
-    // TODO - Create copy of tasks? Or just create an array of random numbers
+    // Create array of indexes for random tasks.
     const taskIndices = createArrayOfRandomIndices(TASK_COUNT, tasks.length);
 
-    console.log('taskIndices', imposterIndices)
     const taskSessions = taskIndices.map(index => (
       { task: tasks[index] }
     ));
 
-    console.log(taskSessions);
     return {
-      user: { connect: { id: user.id }},
+      user: { connect: {
+        user_id_game_id: {
+          user_id: user.id,
+          game_id: game.code
+        }
+      }},
       tasks: {
         create: [
           ...taskSessions
         ]
       },
-      imposter: (imposterIndeces.indexOf(index) !== -1),
+      imposter: (imposterIndices.indexOf(index) !== -1),
     }
   })
 
-  console.log('userSessions', userSessions);
 
   const result = await prisma.gameSession.create({
     data: {
       // Create a UserGameConnection for the user and add to game.
       game: { connect: { code }},
       is_active: true,
-      users_sessions: {
+      user_sessions: {
         create: [ ...userSessions ]
       }
     },
   });
 
-  console.log(result)
-
-  // TODO - Create a game session
-
-  // TODO - Assign a random user as imposter.
-
-  // TODO - Get all Tasks
-
-  // TODO - Assign all users a certain amount of random tasks (Attached via TaskGameSession)
-
-  // TODO - Connect game session to game
-
+  res.json(result);
   // TODO - Redirect users to game page in there is a current game session
 
   // TODO - Play among us round start sound effect on start?
