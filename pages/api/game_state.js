@@ -19,17 +19,10 @@ export default async function handle(req, res) {
         include: {
           user_sessions: {
             where: {
-              // TODO - Need to get game id.
-                user: {
-                  is: {
-                    user_id_game_id: {
-                      user_id: userId,
-                      game_id: code
-                    }
-                  }
-                }
-                // game_id: code
-              // user_id: userId
+              user: {
+                user_id: userId,
+                game_id: code
+              }
             },
             include: {
               tasks: {

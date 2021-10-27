@@ -24,7 +24,9 @@ export default async function handle(req, res) {
       // Connect User to Game
       users: {
         create: [{
-          user: { connect: { id: userId } },
+          user: {
+            connect: { id: userId },
+          },
           owner: true
         }]
       }
