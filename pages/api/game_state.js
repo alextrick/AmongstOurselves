@@ -27,8 +27,12 @@ export default async function handle(req, res) {
             include: {
               tasks: {
                 select: {
+                  id: true,
                   task: true,
                   complete: true
+                },
+                orderBy: {
+                  id: 'asc'
                 }
               },
             }

@@ -14,45 +14,46 @@ datasource db {
 // }
 
 model TaskGameSession {
-  id       Int               @id @default(autoincrement())
+  id       Int             @id @default(autoincrement())
   user     UserGameSession @relation(fields: [user_id], references: [id])
   user_id  Int
   // task     Task            @relation(fields: [task_id], references: [id])
   // task_id  Int
-  task String
+  task     String
   complete Boolean         @default(false)
 }
 
 model User {
-  id          Int               @id @default(autoincrement())
-  name        String
-  games       UserGameConnection[]
+  id    Int                  @id @default(autoincrement())
+  name  String
+  games UserGameConnection[]
 }
 
 model UserGameConnection {
-  user        User             @relation(fields: [user_id], references: [id])
-  user_id     Int
-  game        Game             @relation(fields: [game_id], references: [code])
-  game_id     String
-  owner       Boolean           @default(false)
-  sessions    UserGameSession[]
+  user     User              @relation(fields: [user_id], references: [id])
+  user_id  Int
+  game     Game              @relation(fields: [game_id], references: [code])
+  game_id  String
+  owner    Boolean           @default(false)
+  sessions UserGameSession[]
 
   @@id([user_id, game_id])
 }
 
 model UserGameSession {
-  id         Int               @id @default(autoincrement())
-  session    GameSession       @relation(fields: [session_id], references: [id])
+  id         Int                @id @default(autoincrement())
+  session    GameSession        @relation(fields: [session_id], references: [id])
   session_id Int
-  user       UserGameConnection              @relation(fields: [user_id, game_id], references: [user_id, game_id])
-  user_id    Int               
+  user       UserGameConnection @relation(fields: [user_id, game_id], references: [user_id, game_id])
+  user_id    Int
   game_id    String
   tasks      TaskGameSession[]
-  imposter   Boolean           @default(false)
+  imposter   Boolean            @default(false)
+  alive      Boolean            @default(true)
 }
 
 model Game {
-  code            String       @id
+  code            String               @id
   users           UserGameConnection[]
   current_session GameSession?
 }
@@ -62,6 +63,6 @@ model GameSession {
   is_active       Boolean           @default(false)
   tasks_completed Boolean           @default(false)
   game            Game?             @relation(fields: [game_id], references: [code])
-  game_id         String?              @unique
+  game_id         String?           @unique
   user_sessions   UserGameSession[]
 }

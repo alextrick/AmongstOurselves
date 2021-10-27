@@ -13,6 +13,7 @@ import { Button, Error } from '../styles/shared';
 function Game() {
   const router = useRouter();
   const [ game, setGame ] = useState();
+  const [ userSession, setUserSession ] = useState();
   const [ loading, setLoading ] = useState(false);
   const [ error, setError ] = useState(false);
 
@@ -38,6 +39,18 @@ function Game() {
     code = router.query.code;
   }
 
+  async function handleCompleteTask(taskId) {
+    setLoading(true);
+
+    if (user) {
+      await apiRequest('/api/complete_task', { taskId, userId: user.id });
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
+  }
+
   async function handleEndGame() {
     setLoading(true);
 
@@ -54,33 +67,23 @@ function Game() {
     // Poll game state.
     if (code) {
       const interval = setInterval(async () => {
-        // TODO - Swap to game state. Include UserGameSession so all can be done in one query?
         const res = await apiRequest('/api/game_state', { code, userId: user.id });
   
         // Check if game state differs
-        // TODO - TEST noJSON stuff.
         if (JSON.stringify(res) !== JSON.stringify(game)) {
           setGame(res);
         }
       }, 5000);
 
-      // TODO - Swap to sabotage screen if sabotage is active
-
-      // TODO - Swap to meeting screen if active.
-
-      // TODO - Swap to victory or loss screen on those states
-
-      // TODO - Redirect back to lobby if game ends.
-  
       return () => clearInterval(interval);
     }
   }, [ code, game ]);
 
   useEffect(() => {
-
-    console.log('game', game);
     if (game) {
-         // TODO - Redirect back to lobby if game ends.
+      setUserSession(game.current_session.user_sessions[0]);
+      // Redirect back to lobby if game ends.
+
       if (!game.current_session) {
         router.push(
           {
@@ -89,6 +92,13 @@ function Game() {
           },
         );
       }
+      // TODO - Swap to sabotage screen if sabotage is active
+
+      // TODO - Swap to meeting screen if active.
+
+      // TODO - Swap to victory or loss screen on those states
+
+      // TODO - Redirect back to lobby if game ends.
     }
   }, [ game ]);
 
@@ -100,17 +110,27 @@ function Game() {
             {/* TODO - Add nav here with map? */}
               <h2>Tasks</h2>
 
-              {game.users && (
+              {userSession && (
                 <TaskList>
-                  {game.users.map(({ user }) => (
-                      <li>{user.name}</li>
+                  {userSession.tasks.map(task => (
+                    <li key={`task-${task.id}`} data-complete={task.complete}>
+                      <span className="task">{task.task}</span>
+
+                      <div className="controls">
+                        <button onClick={() => handleCompleteTask(task.id)}>
+                          COMPLETE
+                        </button>
+
+                        <span className="complete-icon">
+                          &#10003;
+                        </span>
+                      </div>
+                    </li>
                   ))}
                 </TaskList>
               )}
 
-
               {/* TODO - Add report / meeting buttons here? */}
-
               {isOwner && (
                 <div>
                   <Button
@@ -143,9 +163,50 @@ const TaskList = styled.ul`
   li {
     padding: 1rem;
     border-bottom: 2px dashed white;
+    display: flex;
+    justify-content: space-between;
 
     &:last-child {
       border: none;
+    }
+
+    .controls {
+      font-size: 1rem;
+      display: flex;
+      position: relative;
+      align-items: center;
+
+      button {
+        transition: opacity 0.4s ease;
+        border: none;
+      }
+
+      .complete-icon {
+        opacity: 0;
+        position: absolute;
+        right: 0;
+        transition: opacity 0.4s ease;
+        font-size: 2rem;
+        min-width: 1rem;
+        margin-left: 1rem;
+        pointer-events: none;
+      }
+    }
+
+    &[data-complete="true"] {
+
+      button {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .task { 
+        text-decoration: line-through;
+      }
+
+      .complete-icon {
+        opacity: 1;
+      }
     }
   }
 `;

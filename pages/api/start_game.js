@@ -7,7 +7,11 @@ function createArrayOfRandomIndices(totalIndices, arrayLength) {
   const randomIndices = [];
 
   while (randomIndices.length < totalIndices) {
-    randomIndices.push(Math.floor(Math.random() * arrayLength))
+    const index = Math.floor(Math.random() * arrayLength);
+
+    if (randomIndices.indexOf(index) === -1) {
+      randomIndices.push(index);
+    }
   }
 
   return randomIndices;

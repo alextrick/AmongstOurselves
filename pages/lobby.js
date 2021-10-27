@@ -91,7 +91,9 @@ function Lobby() {
               {game.users && (
                 <UserList>
                   {game.users.map(({ user }) => (
-                      <li>{user.name}</li>
+                      <li>
+                        {user.name}
+                      </li>
                   ))}
                 </UserList>
               )}
