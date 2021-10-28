@@ -61,8 +61,11 @@ model Game {
 model GameSession {
   id              Int               @id @default(autoincrement())
   is_active       Boolean           @default(false)
-  tasks_completed Boolean           @default(false)
   game            Game?             @relation(fields: [game_id], references: [code])
   game_id         String?           @unique
   user_sessions   UserGameSession[]
+  total_tasks     Int
+  tasks_complete  Int               @default(0)
+  victory         Boolean           @default(false)
+  loss         Boolean              @default(false)
 }

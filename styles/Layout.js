@@ -2,12 +2,12 @@ import React from 'react';
 import styled from 'styled-components';
 import { Container, Row, Col } from 'styled-bootstrap-grid';
 
-function Layout({ children }) {
+function Layout({ children, title }) {
   return (
     <LayoutWrapper>
       <Container>
         <Header>
-          AMONGST OURSELVES!
+          {title || 'AMONGST OURSELVES!'}
         </Header>
       </Container>
 

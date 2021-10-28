@@ -62,12 +62,25 @@ export default async function handle(req, res) {
   const imposterIndices = createArrayOfRandomIndices(IMPOSTER_COUNT, game.users.length);
   
   const userSessions = game.users.map(({ user }, index) => {
-    // Create array of indexes for random tasks.
-    const taskIndices = createArrayOfRandomIndices(TASK_COUNT, tasks.length);
+    const imposter = (imposterIndices.indexOf(index) !== -1)
 
-    const taskSessions = taskIndices.map(index => (
-      { task: tasks[index] }
-    ));
+    let tasks;
+
+    // Create tasks if not an imposter
+    if (!imposter) {
+      // Create array of indexes for random tasks.
+      const taskIndices = createArrayOfRandomIndices(TASK_COUNT, tasks.length);
+
+      const taskSessions = taskIndices.map(index => (
+        { task: tasks[index] }
+      ));
+
+      tasks = {
+        create: [
+          taskSessions
+        ]
+      }
+    }
 
     return {
       user: { connect: {
@@ -76,12 +89,8 @@ export default async function handle(req, res) {
           game_id: game.code
         }
       }},
-      tasks: {
-        create: [
-          ...taskSessions
-        ]
-      },
-      imposter: (imposterIndices.indexOf(index) !== -1),
+      tasks,
+      imposter,
     }
   })
 
@@ -93,7 +102,8 @@ export default async function handle(req, res) {
       is_active: true,
       user_sessions: {
         create: [ ...userSessions ]
-      }
+      },
+      total_tasks: TASK_COUNT * (userSessions.length - IMPOSTER_COUNT),
     },
   });
 

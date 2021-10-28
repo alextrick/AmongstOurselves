@@ -10,40 +10,45 @@ import { apiRequest } from '../lib/helpers';
 // Styles
 import { Button, Error } from '../styles/shared';
 
+
+const randomKillVerb = [
+  'Kill',
+  'Murder',
+  'End the life of',
+  'Execute',
+  'Dismember',
+  'Exsanguinate',
+  'Quickly dispatch',
+  'Remove',
+  'Exterminate',
+  'Do away with',
+  'Clean up',
+  'Take out'
+]
+
 function Game() {
   const router = useRouter();
   const [ game, setGame ] = useState();
+  const [ user, setUser ] = useState(false);
+  const [ isOwner, setIsOwner] = useState(false)
+  const [ code, setCode] = useState()
+  const [ imposter, setImposter ] = useState(false);
   const [ userSession, setUserSession ] = useState();
   const [ loading, setLoading ] = useState(false);
   const [ error, setError ] = useState(false);
-
-  // Get any user details.
-  let user;
-  let code;
-  let isOwner = false;
-
-  if (router.query) {
-    const { name, id } = router.query;
-    
-    user = { name, id: parseInt(id) };
-
-    // Check if current user is game owner.
-    if (game?.users) {
-      for (let gameUser of game.users) {
-        if (gameUser.owner && gameUser.user.id === user.id) {
-          isOwner = true;
-        }
-      }
-    }
-
-    code = router.query.code;
-  }
+  const [ victory, setVictory ] = useState(false);
+  const [ loss, setLoss ] = useState(false);
+  const [ initialSetup, setInitialSetup ] = useState(false);
 
   async function handleCompleteTask(taskId) {
     setLoading(true);
 
-    if (user) {
-      await apiRequest('/api/complete_task', { taskId, userId: user.id });
+    if (user, taskId && code) {
+      await apiRequest('/api/complete_task', {
+        taskId,
+        userId: user.id,
+        code
+      });
     } else {
       setError(true);
     }
@@ -63,6 +68,19 @@ function Game() {
     setLoading(false);
   }
 
+  async function handleBackToLobby() {
+    if (isOwner) {
+      await handleEndGame();
+    }
+
+    router.push(
+      {
+        pathname: '/lobby',
+        query: router.query
+      },
+    );
+  }
+
   useEffect(() => {
     // Poll game state.
     if (code) {
@@ -80,11 +98,35 @@ function Game() {
   }, [ code, game ]);
 
   useEffect(() => {
-    if (game) {
+    // Get any user details from query params.
+    if (router.query) {
+      const { name, id } = router.query;
+      
+      setUser({ name, id: parseInt(id) });
+  
+      setCode(router.query.code);
+    }
+  }, [ router.query ])
+
+  useEffect(() => {
+    if (!initialSetup) {
+      // Check if current user is game owner.
+      if (!isOwner && game?.users) {
+        for (let gameUser of game.users) {
+          if (gameUser.owner && gameUser.user.id === user.id) {
+            setIsOwner(true);
+          }
+        }
+      }
+
+      setInitialSetup(true);
+    }
+
+    if (game?.current_session?.user_sessions) {
       setUserSession(game.current_session.user_sessions[0]);
       // Redirect back to lobby if game ends.
 
-      if (!game.current_session) {
+      if (!victory && !game.current_session) {
         router.push(
           {
             pathname: '/lobby',
@@ -92,18 +134,27 @@ function Game() {
           },
         );
       }
+
       // TODO - Swap to sabotage screen if sabotage is active
 
       // TODO - Swap to meeting screen if active.
 
       // TODO - Swap to victory or loss screen on those states
 
+      // TODO - Update kill cooldown. Set a datetime when a user is killed and wait for that.
+      // Can use similar logic for meetings / sabotages.
+
+      if (game.current_session.victory) {
+        setVictory(true);
+      } else if (game.current_session.loss) {
+        setLoss(true);
+      }
       // TODO - Redirect back to lobby if game ends.
     }
   }, [ game ]);
 
   return (
-    <Layout>
+    <Layout title={code}>
       <Container>
           {game && (
             <>
@@ -130,28 +181,100 @@ function Game() {
                 </TaskList>
               )}
 
-              {/* TODO - Add report / meeting buttons here? */}
-              {isOwner && (
-                <div>
-                  <Button
-                    disabled={loading}
-                    onClick={handleEndGame}
-                  >
-                    End game
-                  </Button>
+              {imposter && (
+                <TaskList>
+                  {userSession.tasks.map(task => (
+                    <li key={`task-${task.id}`} data-complete={task.complete}>
+                      <span className="task">{task.task}</span>
 
-                  {error && <Error>Error!</Error>}
-                </div>
-                )
-              }
+                      <div className="controls">
+                        <button onClick={() => handleCompleteTask(task.id)}>
+                          COMPLETE
+                        </button>
+
+                        <span className="complete-icon">
+                          &#10003;
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </TaskList>
+              )}
+
+              {/* TODO - Add report / meeting buttons here? */}
+          
             </>
           )}
+
+          {isOwner && (
+            <div>
+              <Button
+                disabled={loading}
+                onClick={handleEndGame}
+              >
+                End game
+              </Button>
+
+              {error && <Error>Error!</Error>}
+            </div>
+          )}
+
+          <Modal show={victory}>
+            <Container>
+              <h2>CREWMATE</h2>
+              <Button onClick={handleBackToLobby}>Return to Lobby</Button>
+            </Container>
+          </Modal>
+
+          <Modal show={victory}>
+            <Container>
+              <h2>VICTORY!</h2>
+              <Button onClick={handleBackToLobby}>Return to Lobby</Button>
+            </Container>
+          </Modal>
+
+          <Modal show={loss}>
+            <Container>
+              <h2>You lose!</h2>
+              <p>The imposter killed all the crewmates.</p>
+              <Button onClick={handleBackToLobby}>Return to Lobby</Button>
+            </Container>
+          </Modal>
       </Container>
     </Layout>
   )
 }
 
 export default Game;
+
+
+const Modal = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0;
+  transition: opacity 0.4s ease, visibility 0.4s;
+  z-index: -1;
+  visibility: none;
+  background: black;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+
+  h2 {
+    font-size: 4rem;
+  }
+
+  ${props => props.show && `
+    transition: opacity 0.4s ease, visibility 0s;
+    visibility: visible;
+    opacity: 1;
+    z-index: 1000;
+  `}
+`;
 
 const TaskList = styled.ul`
   border: 0.25rem solid white;
@@ -179,6 +302,10 @@ const TaskList = styled.ul`
       button {
         transition: opacity 0.4s ease;
         border: none;
+
+        &:focus {
+          opacity: 0;
+        }
       }
 
       .complete-icon {

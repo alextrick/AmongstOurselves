@@ -4,7 +4,7 @@ export default async function handle(req, res) {
   const { name } = req.body;
 
   const result = await prisma.user.create({
-    data: { name },
+    data: { name: name.toUpperCase() },
   });
 
   res.json(result);
