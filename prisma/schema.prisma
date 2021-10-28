@@ -21,6 +21,7 @@ model TaskGameSession {
   // task_id  Int
   task     String
   complete Boolean         @default(false)
+  hidden Boolean         @default(false)
 }
 
 model User {
@@ -67,5 +68,5 @@ model GameSession {
   total_tasks     Int
   tasks_complete  Int               @default(0)
   victory         Boolean           @default(false)
-  loss         Boolean              @default(false)
+  loss            Boolean              @default(false)
 }

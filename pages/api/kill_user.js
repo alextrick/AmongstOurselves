@@ -1,0 +1,103 @@
+import { createArrayOfRandomIndices } from '../../lib/helpers';
+import prisma from '../../lib/prisma';
+
+export default async function handle(req, res) {
+  // TODO - Auth - also currently all users can send this, lock it down to imposters?
+  let { userSessionId, userId, code, session } = req.body;
+
+  if (!userId || !userSessionId || !code || !session) {
+    res.status(400).json({error: "userId, code, session, or userSessionId not provided"});
+  }
+
+  const result = await prisma.userGameSession.update({
+    where: { 
+      id: userSessionId,
+     },
+    data: {
+      alive: false
+    },
+    include: {
+      tasks: {
+        select: { task: true, complete: true }
+      }
+    }
+  });
+
+  if (result) {
+    // TODO - Update all those tasks to 'hidden: false', once a meeting is called
+
+    // Get all remaining alive users.
+    const userSessions = await prisma.userGameSession.findMany({
+      where: {
+        session_id: session,
+        game_id: code,
+        alive: true,
+        imposter: false
+      }
+    });
+
+    if (userSessions.length <= 1) {
+      await prisma.gameSession.update({
+        where: {
+          id: session
+        },
+        data: {
+          loss: true,
+          is_active: false
+        }
+      });
+
+      return res.json({});
+    }
+
+    const uncompleteTasks = result.tasks.filter(task => !task.complete);
+
+    const averageTasksPerUser = Math.ceil(uncompleteTasks.length / userSessions.length)
+
+    let currentUserSession = 0;
+
+    // Create a random array of indices used to select random users for task assignment
+    const randomSessionIndices = createArrayOfRandomIndices(
+      Math.ceil(uncompleteTasks.length / averageTasksPerUser), userSessions.length, true
+    );
+
+    while (uncompleteTasks.length !== 0) {
+      const tasks = [];
+
+      // Get 'averageTasksPerUser' amount of tasks from the killed users remaining tasks.
+      for (let count = 1; count <= averageTasksPerUser; count += 1) {
+        const poppedTask = uncompleteTasks.pop();
+
+        if (poppedTask) {
+          tasks.push(poppedTask)
+        }
+      }
+ 
+      // Assign those tasks to a random alive user.
+      const randomSession = userSessions[randomSessionIndices[currentUserSession]]
+
+      await prisma.userGameSession.update({
+        where: {
+          id: randomSession.id
+        },
+        data: {
+          tasks: {
+            create: tasks.map(task => ({ task: task.task, hidden: true }))
+          }
+        },
+        include: {
+          tasks: {
+            select: {
+              id: true,
+              task: true
+            }
+          }
+        }
+      });
+
+      currentUserSession += 1;
+    }
+  }
+
+  res.json(result);
+}

@@ -74,7 +74,7 @@ function Lobby() {
         router.push(
           {
             pathname: '/game',
-            query: router.query
+            query: {...router.query, session: game.current_session.id}
           },
         );
       }

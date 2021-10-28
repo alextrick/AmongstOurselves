@@ -1,7 +1,7 @@
 import prisma from '../../lib/prisma';
 
 export default async function handle(req, res) {
-  let { code, userId } = req.body;
+  let { code } = req.body;
 
   // Perhaps I should just pass the 'game session' into the url params?
 
@@ -12,18 +12,9 @@ export default async function handle(req, res) {
   const result = await prisma.game.findUnique({
     where: { code },
     include: {
-      users: {
-        select: { user: true, owner: true },
-      },
       current_session: {
         include: {
           user_sessions: {
-            where: {
-              user: {
-                user_id: userId,
-                game_id: code
-              }
-            },
             include: {
               tasks: {
                 select: {
@@ -35,6 +26,9 @@ export default async function handle(req, res) {
                   id: 'asc'
                 }
               },
+              user: {
+                select: { user: true, owner: true },
+              }
             }
           }
         }

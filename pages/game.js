@@ -5,7 +5,7 @@ import Layout from '../styles/Layout'
 import { Container, Row, Col } from 'styled-bootstrap-grid';
 
 // Lib
-import { apiRequest } from '../lib/helpers';
+import { apiRequest, createArrayOfRandomIndices } from '../lib/helpers';
 
 // Styles
 import { Button, Error } from '../styles/shared';
@@ -26,10 +26,12 @@ const randomKillVerb = [
   'Take out'
 ]
 
+
 function Game() {
   const router = useRouter();
   const [ game, setGame ] = useState();
-  const [ user, setUser ] = useState(false);
+  const [ user, setUser ] = useState({});
+  const [ session, setSession ] = useState();
   const [ isOwner, setIsOwner] = useState(false)
   const [ code, setCode] = useState()
   const [ imposter, setImposter ] = useState(false);
@@ -39,6 +41,7 @@ function Game() {
   const [ victory, setVictory ] = useState(false);
   const [ loss, setLoss ] = useState(false);
   const [ initialSetup, setInitialSetup ] = useState(false);
+  const [ killVerbIndices, setKillVerbIndices ] = useState([]);
 
   async function handleCompleteTask(taskId) {
     setLoading(true);
@@ -48,6 +51,23 @@ function Game() {
         taskId,
         userId: user.id,
         code
+      });
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
+  }
+
+  async function handleKillUser(userSessionId) {
+    setLoading(true);
+
+    if (user, userSessionId, code) {
+      await apiRequest('/api/kill_user', {
+        userSessionId,
+        userId: user.id,
+        code,
+        session
       });
     } else {
       setError(true);
@@ -85,7 +105,7 @@ function Game() {
     // Poll game state.
     if (code) {
       const interval = setInterval(async () => {
-        const res = await apiRequest('/api/game_state', { code, userId: user.id });
+        const res = await apiRequest('/api/game_state', { code });
   
         // Check if game state differs
         if (JSON.stringify(res) !== JSON.stringify(game)) {
@@ -103,36 +123,59 @@ function Game() {
       const { name, id } = router.query;
       
       setUser({ name, id: parseInt(id) });
-  
       setCode(router.query.code);
+      router.query.session && setSession(parseInt(router.query.session));
     }
-  }, [ router.query ])
+  }, [ router.query ]);
 
   useEffect(() => {
-    if (!initialSetup) {
-      // Check if current user is game owner.
-      if (!isOwner && game?.users) {
-        for (let gameUser of game.users) {
-          if (gameUser.owner && gameUser.user.id === user.id) {
+    // Redirect back to lobby if game ends.
+    if (game && !game.current_session) {
+      const query = { ...router.query };
+      delete query['session'];
+
+      router.push(
+        {
+          pathname: '/lobby',
+          query
+        },
+      );
+    }
+    
+    if (game?.current_session?.user_sessions) {
+      if (!initialSetup) {
+        for (let session of game?.current_session?.user_sessions) {
+          // Check if current user is game owner.
+          if (session.user.owner && session.user_id === user.id) {
             setIsOwner(true);
           }
+          
+          // Get current users UserSession
+          if (session.user_id === user.id) {
+            setUserSession(session);
+
+            // Check if current user is imposter
+            if (session.imposter) {
+              setImposter(true);
+              
+              // Create a random array of indexes for selecting kill verbs
+              setKillVerbIndices(
+                createArrayOfRandomIndices(
+                  game.current_session.user_sessions.length, randomKillVerb.length
+                )
+              );
+            }
+          }
         }
-      }
 
-      setInitialSetup(true);
-    }
-
-    if (game?.current_session?.user_sessions) {
-      setUserSession(game.current_session.user_sessions[0]);
-      // Redirect back to lobby if game ends.
-
-      if (!victory && !game.current_session) {
-        router.push(
-          {
-            pathname: '/lobby',
-            query: router.query
-          },
-        );
+        setInitialSetup(true);
+      } else {
+        for (let session of game?.current_session?.user_sessions) {
+          // Get current users UserSession
+          if (session.user_id === user.id) {
+            setUserSession(session);
+          }
+        }
       }
 
       // TODO - Swap to sabotage screen if sabotage is active
@@ -140,6 +183,7 @@ function Game() {
       // TODO - Swap to meeting screen if active.
 
       // TODO - Swap to victory or loss screen on those states
+
 
       // TODO - Update kill cooldown. Set a datetime when a user is killed and wait for that.
       // Can use similar logic for meetings / sabotages.
@@ -149,7 +193,6 @@ function Game() {
       } else if (game.current_session.loss) {
         setLoss(true);
       }
-      // TODO - Redirect back to lobby if game ends.
     }
   }, [ game ]);
 
@@ -159,45 +202,58 @@ function Game() {
           {game && (
             <>
             {/* TODO - Add nav here with map? */}
-              <h2>Tasks</h2>
+              {userSession && !userSession.alive && (
+                <h2>You have been killed.</h2>
+              )}
 
-              {userSession && (
-                <TaskList>
-                  {userSession.tasks.map(task => (
-                    <li key={`task-${task.id}`} data-complete={task.complete}>
-                      <span className="task">{task.task}</span>
+              {userSession?.alive && (
+                <>
+                  <h2>Tasks</h2>
 
-                      <div className="controls">
-                        <button onClick={() => handleCompleteTask(task.id)}>
-                          COMPLETE
-                        </button>
+                  <TaskList>
+                    {userSession.tasks.map(task => (
+                      <li key={`task-${task.id}`} data-complete={task.complete}>
+                        <span className="task">{task.task}</span>
 
-                        <span className="complete-icon">
-                          &#10003;
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </TaskList>
+                        <div className="controls">
+                          <button onClick={() => handleCompleteTask(task.id)}>
+                            COMPLETE
+                          </button>
+
+                          <span className="complete-icon">
+                            &#10003;
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </TaskList>
+                </>
               )}
 
               {imposter && (
                 <TaskList>
-                  {userSession.tasks.map(task => (
-                    <li key={`task-${task.id}`} data-complete={task.complete}>
-                      <span className="task">{task.task}</span>
+                  {game.current_session?.user_sessions?.map((session, index) => {
+                    const sessionUser = session.user.user;
 
-                      <div className="controls">
-                        <button onClick={() => handleCompleteTask(task.id)}>
-                          COMPLETE
-                        </button>
-
-                        <span className="complete-icon">
-                          &#10003;
-                        </span>
-                      </div>
-                    </li>
-                  ))}
+                    if (!session.imposter) {
+                      return (
+                        // TODO - Swap complete to alive status
+                        <li key={`user-${sessionUser.id}`} data-complete={!session.alive}>
+                          <span className="task">{randomKillVerb[killVerbIndices[index]]} {sessionUser.name}</span>
+    
+                          <div className="controls">
+                            <button onClick={() => handleKillUser(session.id)}>
+                              COMPLETE
+                            </button>
+    
+                            <span className="complete-icon">
+                              &#10003;
+                            </span>
+                          </div>
+                        </li>
+                      );
+                    }
+                  })}
                 </TaskList>
               )}
 
@@ -226,17 +282,19 @@ function Game() {
             </Container>
           </Modal>
 
-          <Modal show={victory}>
+          <Modal show={victory} bg={imposter ? "#AA0000" : "#71BC78"}>
             <Container>
-              <h2>VICTORY!</h2>
+              <h2>{imposter? 'YOU LOSE!' : 'VICTORY!'}</h2>
+              <p>The crewmates completed all their tasks.</p>
               <Button onClick={handleBackToLobby}>Return to Lobby</Button>
             </Container>
           </Modal>
 
-          <Modal show={loss}>
+          <Modal show={loss} bg={imposter ? '#71BC78' : "#AA0000"}>
+            <h2>{imposter ? 'VICTORY!' : 'YOU LOSE!'}</h2>
+            <p>The imposter(s) killed all the crewmates.</p>
+
             <Container>
-              <h2>You lose!</h2>
-              <p>The imposter killed all the crewmates.</p>
               <Button onClick={handleBackToLobby}>Return to Lobby</Button>
             </Container>
           </Modal>
@@ -258,7 +316,7 @@ const Modal = styled.div`
   transition: opacity 0.4s ease, visibility 0.4s;
   z-index: -1;
   visibility: none;
-  background: black;
+  background: ${props => props.bg || 'black'};
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -266,6 +324,11 @@ const Modal = styled.div`
 
   h2 {
     font-size: 4rem;
+  }
+
+  p {
+    font-size: 2rem;
+    margin: 2rem 0;
   }
 
   ${props => props.show && `

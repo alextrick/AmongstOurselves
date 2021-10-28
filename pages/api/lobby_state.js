@@ -10,7 +10,7 @@ export default async function handle(req, res) {
         select: { user: true, owner: true },
       },
       current_session: {
-        select: { is_active: true }
+        select: { id: true, is_active: true }
       }
     },
   });

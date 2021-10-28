@@ -1,21 +1,31 @@
+import { createArrayOfRandomIndices } from '../../lib/helpers';
 import prisma from '../../lib/prisma';
 
 const IMPOSTER_COUNT = 1;
 const TASK_COUNT = 8;
+const TASKS = [
+  'temp task test',
+  'temp task test 2',
+  'temp task test 3',
+  'temp task test 4',
+  'temp task test 5',
+  'temp task test 6',
+  'temp task test 7',
+  'temp task test 8',
+  'temp task test 9',
+  'temp task test 10',
+  'temp task test 11',
+  'temp task test 12',
+  'temp task test 13',
+  'temp task test 14',
+  'temp task test 15',
+  'temp task test 16',
+  'temp task test 17',
+  'temp task test 18',
+  'temp task test 19',
+  'temp task test 20',
+];
 
-function createArrayOfRandomIndices(totalIndices, arrayLength) {
-  const randomIndices = [];
-
-  while (randomIndices.length < totalIndices) {
-    const index = Math.floor(Math.random() * arrayLength);
-
-    if (randomIndices.indexOf(index) === -1) {
-      randomIndices.push(index);
-    }
-  }
-
-  return randomIndices;
-}
 
 export default async function handle(req, res) {
   // LATER TODO - Currently anyone can start any game. Lock it down to the owner.
@@ -35,31 +45,8 @@ export default async function handle(req, res) {
     },
   });
 
-  const tasks = [
-    'temp task test',
-    'temp task test 2',
-    'temp task test 3',
-    'temp task test 4',
-    'temp task test 5',
-    'temp task test 6',
-    'temp task test 7',
-    'temp task test 8',
-    'temp task test 9',
-    'temp task test 10',
-    'temp task test 11',
-    'temp task test 12',
-    'temp task test 13',
-    'temp task test 14',
-    'temp task test 15',
-    'temp task test 16',
-    'temp task test 17',
-    'temp task test 18',
-    'temp task test 19',
-    'temp task test 20',
-  ];
-
   // Get an array of random indexes of the users to select as the imposter(s)
-  const imposterIndices = createArrayOfRandomIndices(IMPOSTER_COUNT, game.users.length);
+  const imposterIndices = createArrayOfRandomIndices(IMPOSTER_COUNT, game.users.length, true);
   
   const userSessions = game.users.map(({ user }, index) => {
     const imposter = (imposterIndices.indexOf(index) !== -1)
@@ -69,16 +56,14 @@ export default async function handle(req, res) {
     // Create tasks if not an imposter
     if (!imposter) {
       // Create array of indexes for random tasks.
-      const taskIndices = createArrayOfRandomIndices(TASK_COUNT, tasks.length);
+      const taskIndices = createArrayOfRandomIndices(TASK_COUNT, TASKS.length, true);
 
       const taskSessions = taskIndices.map(index => (
-        { task: tasks[index] }
+        { task: TASKS[index] }
       ));
 
       tasks = {
-        create: [
-          taskSessions
-        ]
+        create: taskSessions
       }
     }
 
