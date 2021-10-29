@@ -2,7 +2,7 @@ import prisma from '../../lib/prisma';
 
 export default async function handle(req, res) {
   // TODO - Auth
-  let { taskId, userId, code } = req.body;
+  let { taskId, userId, session } = req.body;
 
   if (!userId || !taskId) {
     res.status(400).json({error: "userId or taskId not provided"});
@@ -24,7 +24,7 @@ export default async function handle(req, res) {
   if (result.count === 1) {
     const gameSession = await prisma.gameSession.update({
       where: {
-        game_id: code
+        id: session
       },
       data: {
         tasks_complete: {
@@ -36,7 +36,7 @@ export default async function handle(req, res) {
     if (gameSession.tasks_complete === gameSession.total_tasks) {
       await prisma.gameSession.update({
         where: {
-          game_id: code
+          id: session
         },
         data: {
           victory: true,

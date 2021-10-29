@@ -39,10 +39,11 @@ function Game() {
   const [ loading, setLoading ] = useState(false);
   const [ error, setError ] = useState(false);
   const [ showMap, setShowMap ] = useState(false);
-  const [ victory, setVictory ] = useState(false);
-  const [ loss, setLoss ] = useState(false);
   const [ initialSetup, setInitialSetup ] = useState(false);
   const [ killVerbIndices, setKillVerbIndices ] = useState([]);
+  const [ meeting, setMeeting ] = useState(false);
+  const [ sabotage, setSabotage ] = useState();
+  const [ sabotageCooldown, setSabotageCooldown] = useState();
 
   async function handleCompleteTask(taskId) {
     setLoading(true);
@@ -51,7 +52,7 @@ function Game() {
       await apiRequest('/api/complete_task', {
         taskId,
         userId: user.id,
-        code
+        session
       });
     } else {
       setError(true);
@@ -63,12 +64,12 @@ function Game() {
   async function handleKillUser(userSessionId) {
     setLoading(true);
 
-    if (user, userSessionId, code) {
+    if (user && userSessionId && session && code) {
       await apiRequest('/api/kill_user', {
         userSessionId,
         userId: user.id,
-        code,
-        session
+        session,
+        code
       });
     } else {
       setError(true);
@@ -105,8 +106,8 @@ function Game() {
   async function handleReport() {
     setLoading(true);
 
-    if (code) {
-      await apiRequest('/api/handleSabotage', { code });
+    if (session) {
+      await apiRequest('/api/report', { session });
     } else {
       setError(true);
     }
@@ -117,8 +118,8 @@ function Game() {
   async function handleSabotage() {
     setLoading(true);
 
-    if (code) {
-      await apiRequest('/api/handleSabotage', { code });
+    if (session) {
+      await apiRequest('/api/sabotage', { session });
     } else {
       setError(true);
     }
@@ -128,19 +129,23 @@ function Game() {
 
   useEffect(() => {
     // Poll game state.
-    if (code) {
+    if (session) {
       const interval = setInterval(async () => {
-        const res = await apiRequest('/api/game_state', { code });
+        const res = await apiRequest('/api/game_state', { session });
   
+        const { gameData, sabotageTimer, sabotageCooldownTimer } = res; 
         // Check if game state differs
-        if (JSON.stringify(res) !== JSON.stringify(game)) {
-          setGame(res);
+        if (JSON.stringify(gameData) !== JSON.stringify(game)) {
+          setGame(gameData);
         }
-      }, 5000);
+
+        setSabotage(sabotageTimer);
+        setSabotageCooldown(sabotageCooldownTimer)
+      }, 500);
 
       return () => clearInterval(interval);
     }
-  }, [ code, game ]);
+  }, [ session, game ]);
 
   useEffect(() => {
     // Get any user details from query params.
@@ -155,7 +160,7 @@ function Game() {
 
   useEffect(() => {
     // Redirect back to lobby if game ends.
-    if (game && !game.current_session) {
+    if (game && !game.victory && !game.loss && !game.is_active) {
       const query = { ...router.query };
       delete query['session'];
 
@@ -167,9 +172,9 @@ function Game() {
       );
     }
     
-    if (game?.current_session?.user_sessions) {
+    if (game?.user_sessions) {
       if (!initialSetup) {
-        for (let session of game?.current_session?.user_sessions) {
+        for (let session of game?.user_sessions) {
           // Check if current user is game owner.
           if (session.user.owner && session.user_id === user.id) {
             setIsOwner(true);
@@ -186,7 +191,7 @@ function Game() {
               // Create a random array of indexes for selecting kill verbs
               setKillVerbIndices(
                 createArrayOfRandomIndices(
-                  game.current_session.user_sessions.length, randomKillVerb.length
+                  game.user_sessions.length, randomKillVerb.length
                 )
               );
             }
@@ -195,35 +200,25 @@ function Game() {
 
         setInitialSetup(true);
       } else {
-        for (let session of game?.current_session?.user_sessions) {
+        for (let session of game?.user_sessions) {
           // Get current users UserSession
           if (session.user_id === user.id) {
             setUserSession(session);
           }
         }
       }
-
-      // TODO - Swap to sabotage screen if sabotage is active
-
       // TODO - Swap to meeting screen if active.
 
       // TODO - Update kill cooldown. Set a datetime when a user is killed and wait for that.
       // Can use similar logic for meetings / sabotages.
-
-      if (game.current_session.victory) {
-        setVictory(true);
-      } else if (game.current_session.loss) {
-        setLoss(true);
-      }
     }
   }, [ game ]);
 
   return (
-    <Layout title={code}>
+    <Layout title={code} bg={sabotage && '#AA0000'}>
       <Container>
           {game && (
             <>
-            {/* TODO - Add nav here with map? */}
               {userSession && !userSession.alive && (
                 <h2>You have been killed.</h2>
               )}
@@ -232,70 +227,71 @@ function Game() {
                 <>
                   <h2>Tasks</h2>
 
-                  <TaskList>
-                    {userSession.tasks.map(task => (
-                      <li key={`task-${task.id}`} data-complete={task.complete}>
-                        <span className="task">{task.task}</span>
-
-                        <div className="controls">
-                          <button onClick={() => handleCompleteTask(task.id)}>
-                            COMPLETE
-                          </button>
-
-                          <span className="complete-icon">
-                            &#10003;
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </TaskList>
-                </>
-              )}
-
-              {imposter && (
-                <TaskList>
-                  {game.current_session?.user_sessions?.map((session, index) => {
-                    const sessionUser = session.user.user;
-
-                    if (!session.imposter) {
-                      return (
-                        // TODO - Swap complete to alive status
-                        <li key={`user-${sessionUser.id}`} data-complete={!session.alive}>
-                          <span className="task">{randomKillVerb[killVerbIndices[index]]} {sessionUser.name}</span>
+                  {imposter ? (
+                    <TaskList>
+                      {game.user_sessions?.map((session, index) => {
+                        const sessionUser = session.user.user;
     
+                        if (!session.imposter) {
+                          return (
+                            <li key={`user-${sessionUser.id}`} data-complete={!session.alive}>
+                              <span className="task">{randomKillVerb[killVerbIndices[index]]} {sessionUser.name}</span>
+        
+                              <div className="controls">
+                                {/* Disabled if there's a kill cooldown */}
+                                <button disabled={userSession.killCooldown} onClick={() => handleKillUser(session.id)}>
+                                  {userSession.killCooldown || 'COMPLETE' }
+                                </button>
+        
+                                <span className="complete-icon">
+                                  &#10003;
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        }
+                      })}
+                    </TaskList>
+                  ) : (
+                    <TaskList>
+                      {userSession.tasks.map(task => (
+                        <li key={`task-${task.id}`} data-complete={task.complete}>
+                          <span className="task">{task.task}</span>
+
                           <div className="controls">
-                            <button onClick={() => handleKillUser(session.id)}>
+                            <button onClick={() => handleCompleteTask(task.id)}>
                               COMPLETE
                             </button>
-    
+
                             <span className="complete-icon">
                               &#10003;
                             </span>
                           </div>
                         </li>
-                      );
-                    }
-                  })}
-                </TaskList>
+                      ))}
+                    </TaskList>
+                  )}
+                </>
               )}
 
               <div className="controls">
-                <Button onClick={handleReport}>REPORT</Button>
+                {sabotage ? (
+                  <h2>SABOTAGE - {sabotage}</h2> 
+                ) : (
+                  <Button onClick={handleReport}>REPORT</Button>
+                )}
 
                 {imposter ? (
-                  <Button onClick={handleSabotage}>SABOTAGE</Button>
+                  <Button disabled={sabotageCooldown} onClick={handleSabotage}>{sabotageCooldown || 'SABOTAGE'}</Button>
                 ) : (
                   <Button onClick={() => setShowMap(true)}>SHOW MAP</Button>
                 )}
-              </div>
-
-              {/* TODO - Add report / meeting buttons here? */}
-          
+              </div>          
             </>
           )}
 
           {isOwner && (
-            <div>
+            <OwnerControls>
               <Button
                 disabled={loading}
                 onClick={handleEndGame}
@@ -304,15 +300,8 @@ function Game() {
               </Button>
 
               {error && <Error>Error!</Error>}
-            </div>
+            </OwnerControls>
           )}
-
-          <Modal show={victory}>
-            <Container>
-              <h2>CREWMATE</h2>
-              <Button onClick={handleBackToLobby}>Return to Lobby</Button>
-            </Container>
-          </Modal>
 
           <Modal show={showMap}>
             <Container>
@@ -322,7 +311,36 @@ function Game() {
             </Container>
           </Modal>
 
-          <Modal show={victory} bg={imposter ? "#AA0000" : "#71BC78"}>
+          {/* This is a mess but running out of time */}
+          <Modal
+            show={game?.meeting}
+            bg={'darkcyan'}
+          >
+            <Container>
+                <h2>
+                  MEETING!
+                </h2>
+
+                <p>Return to Electrical to confer with your crewmates.</p>
+
+                {isOwner && (
+                  <OwnerControls>
+                    <Button
+                      disabled={loading}
+                      onClick={handleEndGame}
+                    >
+                      End game
+                    </Button>
+
+                    {error && <Error>Error!</Error>}
+                  </OwnerControls>
+                )}
+
+                {/* TODO - Add map here showing location of sabotage? */}
+            </Container>
+          </Modal>
+
+          <Modal show={game?.victory} bg={imposter ? "#AA0000" : "#71BC78"}>
             <Container>
               <h2>{imposter? 'YOU LOSE!' : 'VICTORY!'}</h2>
               <p>The crewmates completed all their tasks.</p>
@@ -330,7 +348,7 @@ function Game() {
             </Container>
           </Modal>
 
-          <Modal show={loss} bg={imposter ? '#71BC78' : "#AA0000"}>
+          <Modal show={game?.loss} bg={imposter ? '#71BC78' : "#AA0000"}>
             <h2>{imposter ? 'VICTORY!' : 'YOU LOSE!'}</h2>
             <p>The imposter(s) killed all the crewmates.</p>
 
@@ -402,9 +420,19 @@ const TaskList = styled.ul`
       position: relative;
       align-items: center;
 
+      h2 {
+        font-size: 5rem;
+      }
+
       button {
         transition: opacity 0.4s ease;
         border: none;
+        min-width: 6rem;
+
+        &:disabled {
+          background: white;
+          opacity: 0.5;
+        }
 
         &:focus {
           opacity: 0;
@@ -425,7 +453,8 @@ const TaskList = styled.ul`
 
     &[data-complete="true"] {
 
-      button {
+      button,
+      button:disabled {
         opacity: 0;
         pointer-events: none;
       }
@@ -440,3 +469,9 @@ const TaskList = styled.ul`
     }
   }
 `;
+
+const OwnerControls = styled.div`
+  margin-top: 4rem;
+  opacity: 0.6;
+`;
+

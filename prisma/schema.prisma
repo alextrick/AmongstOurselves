@@ -51,6 +51,7 @@ model UserGameSession {
   tasks      TaskGameSession[]
   imposter   Boolean            @default(false)
   alive      Boolean            @default(true)
+  kill_cooldown_end String?
 }
 
 model Game {
@@ -68,5 +69,9 @@ model GameSession {
   total_tasks     Int
   tasks_complete  Int               @default(0)
   victory         Boolean           @default(false)
-  loss            Boolean              @default(false)
+  loss            Boolean           @default(false)
+  sabotage        Boolean           @default(false)
+  sabotage_end    String?
+  meeting  Boolean           @default(false)
+  meeting_end     String?
 }

@@ -1,12 +1,14 @@
 import { createArrayOfRandomIndices } from '../../lib/helpers';
 import prisma from '../../lib/prisma';
 
+const KILL_COOLDOWN = 30000;
+
 export default async function handle(req, res) {
   // TODO - Auth - also currently all users can send this, lock it down to imposters?
-  let { userSessionId, userId, code, session } = req.body;
+  let { userSessionId, code, session, userId } = req.body;
 
-  if (!userId || !userSessionId || !code || !session) {
-    res.status(400).json({error: "userId, code, session, or userSessionId not provided"});
+  if (!userSessionId || !session) {
+    res.status(400).json({error: "code, session, or userSessionId not provided"});
   }
 
   const result = await prisma.userGameSession.update({
@@ -24,6 +26,18 @@ export default async function handle(req, res) {
   });
 
   if (result) {
+    const now = Date.now()
+    const kill_cooldown_end = (now + KILL_COOLDOWN).toString();
+
+    // Add kill cooldown
+    await prisma.userGameSession.updateMany({
+      where: { 
+        session_id: session,
+        user_id: userId
+       },
+      data: { kill_cooldown_end }
+    });
+
     // TODO - Update all those tasks to 'hidden: false', once a meeting is called
 
     // Get all remaining alive users.

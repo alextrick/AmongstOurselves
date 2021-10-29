@@ -1,7 +1,5 @@
 import prisma from '../../lib/prisma';
 
-const SABOTAGE_TIME = 45000;
-
 export default async function handle(req, res) {
   // TODO - Auth - also currently all users can send this, lock it down to imposters?
   let { session } = req.body;
@@ -10,17 +8,12 @@ export default async function handle(req, res) {
     res.status(400).json({error: "session not provided"});
   }
 
-  const now = Date.now()
-  const sabotage_end = (now + SABOTAGE_TIME).toString();
-
-  await prisma.gameSession.updateMany({
+  await prisma.gameSession.update({
     where: {
-      id: session,
-      meeting: false
+      id: session
     },
     data: {
-      sabotage: true,
-      sabotage_end
+      meeting: true
     }
   });
 

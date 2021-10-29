@@ -1,10 +1,10 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Container, Row, Col } from 'styled-bootstrap-grid';
+import { Container } from 'styled-bootstrap-grid';
 
-function Layout({ children, title }) {
+function Layout({ children, title, bg }) {
   return (
-    <LayoutWrapper>
+    <LayoutWrapper bg={bg}>
       <Container>
         <Header>
           {title || 'AMONGST OURSELVES!'}
@@ -21,11 +21,12 @@ function Layout({ children, title }) {
 export default Layout;
 
 const LayoutWrapper = styled.div`
+  padding: 1rem 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   font-family: monospace;
-  background-color: black;
+  background: ${props => props.bg || 'black'};
   color: white;
 `;
 
