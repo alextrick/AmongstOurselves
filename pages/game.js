@@ -38,6 +38,7 @@ function Game() {
   const [ userSession, setUserSession ] = useState();
   const [ loading, setLoading ] = useState(false);
   const [ error, setError ] = useState(false);
+  const [ showMap, setShowMap ] = useState(false);
   const [ victory, setVictory ] = useState(false);
   const [ loss, setLoss ] = useState(false);
   const [ initialSetup, setInitialSetup ] = useState(false);
@@ -99,6 +100,30 @@ function Game() {
         query: router.query
       },
     );
+  }
+
+  async function handleReport() {
+    setLoading(true);
+
+    if (code) {
+      await apiRequest('/api/handleSabotage', { code });
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
+  }
+
+  async function handleSabotage() {
+    setLoading(true);
+
+    if (code) {
+      await apiRequest('/api/handleSabotage', { code });
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -182,9 +207,6 @@ function Game() {
 
       // TODO - Swap to meeting screen if active.
 
-      // TODO - Swap to victory or loss screen on those states
-
-
       // TODO - Update kill cooldown. Set a datetime when a user is killed and wait for that.
       // Can use similar logic for meetings / sabotages.
 
@@ -257,6 +279,16 @@ function Game() {
                 </TaskList>
               )}
 
+              <div className="controls">
+                <Button onClick={handleReport}>REPORT</Button>
+
+                {imposter ? (
+                  <Button onClick={handleSabotage}>SABOTAGE</Button>
+                ) : (
+                  <Button onClick={() => setShowMap(true)}>SHOW MAP</Button>
+                )}
+              </div>
+
               {/* TODO - Add report / meeting buttons here? */}
           
             </>
@@ -279,6 +311,14 @@ function Game() {
             <Container>
               <h2>CREWMATE</h2>
               <Button onClick={handleBackToLobby}>Return to Lobby</Button>
+            </Container>
+          </Modal>
+
+          <Modal show={showMap}>
+            <Container>
+              {/* TODO - Add tasks to map. */}
+              <p>ADD MAP HERE.</p>
+              <Button onClick={() => setShowMap(false)}>Close map</Button>
             </Container>
           </Modal>
 

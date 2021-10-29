@@ -10,6 +10,7 @@ export default async function handle(req, res) {
   }
 
   // Create random game code
+  // LATER TODO - 
   // There's no protection against collision of this unique
   // 'code' field but it's unlikely to a be a problem for now
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
