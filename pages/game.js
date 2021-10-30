@@ -358,9 +358,11 @@ function Game() {
                 </h2>
 
                 {meetingTimer ? (
+                  // Display vote list
                   <>
                     <TaskList>
-                      {game.user_sessions?.map((session) => {
+                      {game.user_sessions?.filter(session => session.alive)
+                      .map((session) => {
                         const sessionUser = session.user.user;
     
                         return (
