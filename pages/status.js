@@ -5,10 +5,11 @@ import Layout from '../styles/Layout'
 import { Container, Row, Col} from 'styled-bootstrap-grid';
 
 // Lib
-import { addToQuery, apiRequest, HUE_USERNAME, lightsControl, LOCAL_IP } from '../lib/helpers';
+import { addToQuery, apiRequest, hsbToHue, HUE_USERNAME, lightsControl, LOCAL_IP } from '../lib/helpers';
 
 // Styles
 import { Button, Error, Input } from '../styles/shared';
+import { Modal } from './game';
 
 function Status() {
   const router = useRouter()
@@ -19,8 +20,9 @@ function Status() {
   const [ codeInput, setCodeInput ] = useState('')
   const [ sabotage, setSabotage ] = useState();
   const [ meetingTimer, setMeetingTimer ] = useState();
+  const [ meetingResult, setMeetingResult ] = useState();
   const [ lights, setLights ] = useState();
-  const [ lightsIntervalClear, setLightsIntervalClear ] = useState();
+  const [ gameMode, setGameMode ] = useState();
 
   useEffect(() => {
     // Get any user details from query params.
@@ -31,12 +33,14 @@ function Status() {
 
   useEffect(() => {
     (async function() {
-      const res = await fetch(
-        `http://${LOCAL_IP}/api/${HUE_USERNAME}/lights/`,
-      )
-      const lightIds = Object.keys(await res.json());
-  
-      setLights(lightIds);
+      try {
+        const res = await fetch(
+          `http://${LOCAL_IP}/api/${HUE_USERNAME}/lights/`,
+        )
+        const lightIds = Object.keys(await res.json());
+    
+        setLights(lightIds);
+      } catch {}
     })();
   }, []);
 
@@ -54,11 +58,23 @@ function Status() {
 
         setSabotage(sabotageTimer);
         setMeetingTimer(res.meetingTimer);
+        setMeetingResult(res.meetingResult);
       }, 500);
 
       return () => clearInterval(interval);
     }
   }, [ code, game ]);
+
+  useEffect(() => {
+    // Display meeting result for 10 seconds;
+    if (meetingResult) {
+      const timeout = setTimeout(() => {
+        setMeetingResult(null);
+      }, 10000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [meetingResult]);
 
   async function handleStartMeeting() {
     setLoading(true);
@@ -75,25 +91,20 @@ function Status() {
 
   useEffect(() => {
     if (game) {
-      if (sabotage) {
-        if (lightsIntervalClear) await lightsIntervalClear();
-        const intervalClear = lightsControl(lights, { hue: 0, sat: 254 }, true);
-  
-        setLightsIntervalClear(intervalClear);
+      if (!game.current_session) {
+        setSabotage(false);
+        setMeetingTimer(false);
+        setGameMode('lobby');
+      } else if (game.current_session.loss) {
+        setGameMode('loss');
+      } else if (game.current_session.victory) {
+        setGameMode('victory')
+      } else if (sabotage) {
+        setGameMode('sabotage')
       } else if (meeting) {
-        if (lightsIntervalClear) await lightsIntervalClear();
-        const intervalClear = lightsControl(lights, { hue: 180, sat: 100 });
-  
-        setLightsIntervalClear(intervalClear);
-        // TODO - Add loss lights
-        // TODO - Add victory lights
+        setGameMode('meeting')
       } else if (game.current_session) {
-        if (lightsIntervalClear) await lightsIntervalClear();
-        const intervalClear = lightsControl(lights, { }, false, true, true);
-  
-        setLightsIntervalClear(intervalClear);
-      } else {
-        // TODO - Set all lights to random
+        setGameMode('tasks')
       }
     }
       // TODO - Display sabotage screen if that is active?
@@ -114,17 +125,80 @@ function Status() {
 
 
       // TODO - Play game start sound
-      // Redirect to game page if current session.
+      // Redirect to game page if current session
+      
   }, [ game ]);
 
-  const meeting = game?.current_session?.meeting;
+  useEffect(() => {
+    let lightsInterval;
 
-  const bg = meeting ? 'darkcyan' : sabotage ? '#AA0000' : null;
+    // TODO - Add sounds to all of these.
+    if (lights) {
+      switch (gameMode) {
+        case 'lobby':
+          lightsControl(lights, { hue: hsbToHue(20), sat: 20, bri: 120 });
+          break;
+        case 'loss':
+          lightsControl(lights, { hue: 0, sat: 255, bri: 150 });
+          break
+        case 'victory':
+          lightsControl(lights, { hue: hsbToHue(126), sat: 150, bri: 150 });
+          break
+        case 'sabotage':
+          let on = false;
+  
+          lightsInterval = setInterval(() => {
+            on = !on;
+  
+            lightsControl(lights, { hue: 0, sat: 254, bri: 127, on });
+          }, 2000);
+          break;
+        case 'meeting':
+          lightsControl(lights, { hue: hsbToHue(165), sat: 180, bri: 150 });
+          break;
+        case 'tasks':
+          lightsControl(lights, { }, true);
+          break
+        default:
+          lightsControl(lights, { hue: 172, sat: 49, bri: 80});
+      }
+    }
 
-  // console.log(meeting?.votes)
-  // console.log(game?.current_session.user_sessions);
+    if (lightsInterval) {
+      return () => clearInterval(lightsInterval)
+    }
+  }, [ gameMode, lights ]);
+
+  const current_session = game?.current_session || {};
+  const { meeting } = current_session
+
+  let bg;
+
+  if (meeting) {
+    bg = 'darkcyan'
+  } else if (current_session.victory) {
+    bg = '#71BC78'
+  } else if (sabotage || current_session.loss) {
+    bg = '#AA0000'
+  }
+
+  let status;
+
+  // TODO - Swap this to gameMode
+  if (game && !game.current_session) {
+    status = 'In Lobby';
+  } else if (current_session.victory) {
+    status = 'VICTORY!';
+  } else if (current_session.loss) {
+    status = 'LOSS!';
+  } else if (sabotage) {
+    status = 'SABOTAGE';
+  } else {
+    status = 'DO YOUR TASKS';
+  }
+
   return (
-    <Layout bg={bg}>
+    <Layout bg={bg} noTitle={true}>
       <Container>
           {!code && (
             <Row>
@@ -143,28 +217,26 @@ function Status() {
           )}
           {game && (
             <>
-              <h2>{game.code}</h2>
+              <h2>{game.code} - Tasks {current_session.tasks_complete} / {current_session.total_tasks}</h2>
 
-              {game && !game.current_session && (
-                <p>Status - In Lobby</p>
-              )}
+              <GameStatus>Status - {status}</GameStatus>
 
               {meeting && (
                 <>
                   <UserList>
-                    {game.current_session.user_sessions.map(( user ) => (
+                    {current_session.user_sessions.map(( user ) => (
                         <li key={`user-${user.id}`} data-complete={!user.alive}>
                           <div className="task">{user.user.user.name} - {user.alive ? 'ALIVE' : 'DEAD'}</div>
 
                           {meeting && (
                             <>
                               <div className="voted-check">
-                                VOTED: {meeting.votes.filter(vote => vote.voter == user.id).length ? 
-                                  `&#10003;` : `&#10060;`
+                                VOTED: {meeting.votes.filter(vote => vote.voter == user.user.user_id).length ? 
+                                  '\u2713' : 'X'
                                 }
                               </div>
                               <div className="vote-count">
-                                VOTES: {meeting.votes.filter(vote => vote.voted_for == user.id).length}
+                                VOTES: {meeting.votes.filter(vote => vote.voted_for == user.user.user_id).length}
                               </div>
                             </>
                           )}
@@ -193,12 +265,23 @@ function Status() {
               )}
             </>
           )}
+
+          <Modal show={meetingResult}>
+            <Container>
+              <h2>{meetingResult}</h2>
+            </Container>
+          </Modal>
       </Container>
     </Layout>
   )
 }
 
 export default Status;
+
+const GameStatus = styled.h1`
+  font-size: 6rem;
+  text-align: center;
+`;
 
 const UserList = styled.ul`
   border: 0.25rem solid white;
@@ -215,6 +298,14 @@ const UserList = styled.ul`
 
     &:last-child {
       border: none;
+    }
+
+    .voted-check {
+      margin: 0 2rem 0 auto;
+    }
+
+    .vote-count {
+      font-weight: bold;
     }
 
     &[data-complete="true"] {

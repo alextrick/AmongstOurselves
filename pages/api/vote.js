@@ -4,11 +4,11 @@ export default async function handle(req, res) {
   // TODO - Auth - also currently all users can send this, lock it down to imposters?
   let { userSessionId, session, userId } = req.body;
 
+  console.log('voted');
+
   if (!session || !userId) {
     res.status(400).json({error: "session or userId  not provided"});
   }
-
-  console.log('userId', userId, 'userSessionId', userSessionId)
 
   const result = await prisma.gameSession.update({
     where: { 
@@ -27,15 +27,6 @@ export default async function handle(req, res) {
       }
     },
   });
-
-  if (result) {
-
-    // TODO - End meeting early if it's the last vote.
-
-    // TODO - Clear all 'voted_for' at end of meeting.
-
-    // Get all remaining alive users.
-  }
 
   res.json(result);
 }

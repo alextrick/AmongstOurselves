@@ -2,14 +2,16 @@ import React from 'react';
 import styled from 'styled-components';
 import { Container } from 'styled-bootstrap-grid';
 
-function Layout({ children, title, bg }) {
+function Layout({ children, title, bg, noTitle }) {
   return (
     <LayoutWrapper bg={bg}>
-      <Container>
-        <Header>
-          {title || 'AMONGST OURSELVES!'}
-        </Header>
-      </Container>
+      {!noTitle && (
+        <Container>
+          <Header>
+            {title || 'AMONGST OURSELVES!'}
+          </Header>
+        </Container>
+      )}
 
       <div>
         {children}

@@ -1,7 +1,5 @@
 import prisma from '../../lib/prisma';
 
-const SABOTAGE_COOLDOWN = 120000;
-
 export default async function handle(req, res) {
   let { code } = req.body;
 
@@ -19,7 +17,7 @@ export default async function handle(req, res) {
               id: true,
               alive: true,
               user: {
-                select: { user: true, owner: true },
+                select: { user_id: true, user: true, owner: true },
               }
             },
           },
@@ -43,6 +41,7 @@ export default async function handle(req, res) {
 
   let sabotageTimer;
   let meetingTimer;
+  let meetingResult;
 
   const aliveUsers = current_session?.user_sessions?.filter(user => user.alive) || [];
 
@@ -74,27 +73,98 @@ export default async function handle(req, res) {
   if (meeting && meeting.meeting_end) {
     const meeting_end = parseInt(meeting.meeting_end);
 
-    // TODO - Handle meeting summary
-    // TODO - Check for votes.
     if (
       // Meeting has expired
       (meeting_end < now && meeting) ||
       // All votes have been cast
       (aliveUsers.length == meeting.votes?.length)
     ) {
-      // console.log('meeting', meeting)
-      await prisma.game.update({
-        where: {
-          code
-        },
-        data: {
-          current_session: {
-            update: {
-              meeting: { disconnect: true }
+      const voteCounts = { 'skip': 0 };
+
+      for (let vote of meeting.votes) {
+        let { voted_for } = vote;
+
+        if (!voted_for) voted_for = 'skip';
+
+        if (voteCounts[voted_for]) {
+          voteCounts[voted_for] += 1;
+        } else {
+          voteCounts[voted_for] = 1;
+        }
+      }
+
+      // Add skips for any users who took no action
+      voteCounts['skip'] += aliveUsers.length - meeting.votes.length;
+
+      // Add to array, order array.
+      let orderedVotes = [];
+
+      for (let key of Object.keys(voteCounts)) {
+        const count = voteCounts[key];
+
+        orderedVotes.push({ key, count: count});
+      }
+
+      orderedVotes = orderedVotes.sort((a, b) => b.count - a.count);
+
+      if (
+        // Handle a draw
+        (orderedVotes[0].count === orderedVotes[1].count) ||
+        // Handle 'skip' winning
+        (orderedVotes[0].key === 'skip')
+      ) {
+        meetingResult = "No one was ejected";
+      } else {
+        const votedId = parseInt(orderedVotes[0].key)
+        const votedUserDetails = current_session.user_sessions.find(session => session.user.user_id === votedId)
+
+        await prisma.game.update({
+          where: {
+            code
+          },
+          data: {
+            current_session: {
+              update: {
+                user_sessions: {
+                  updateMany: {
+                    where: {
+                      user_id: votedId
+                    },
+                    data: {
+                      alive: false
+                    }
+                  }
+                }
+              }
+            }
+          },
+        });
+        
+        meetingResult = `${votedUserDetails.user.user.name} ${votedUserDetails.imposter ? 'was' : 'was not'} an imposter`;
+      }
+
+      // TODO - Move 'winning by kills' logic here, instead of in 'kill_user'
+      // TODO - Add logic to win by voting out all imposters
+
+      // TODO - Test inactive votes.
+      // TODO - Test draws
+
+      // Delay disconnecting the meeting to display 'X was / was not an imposter'
+
+      setTimeout(async () => {
+        await prisma.game.update({
+          where: {
+            code
+          },
+          data: {
+            current_session: {
+              update: {
+                meeting: { disconnect: true }
+              }
             }
           }
-        }
-      })
+        });
+      }, 500)
     }
 
     meetingTimer = Math.ceil((meeting_end - now) / 1000);
@@ -103,6 +173,7 @@ export default async function handle(req, res) {
   res.json({
     gameData,
     sabotageTimer,
-    meetingTimer
+    meetingTimer,
+    meetingResult
   });
 }

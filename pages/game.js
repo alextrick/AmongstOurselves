@@ -131,7 +131,9 @@ function Game() {
   async function handleVote(userSessionId) {
     setLoading(true);
 
-    if (user && userSessionId && session) {
+    console.log('handleVote')
+
+    if (user && session) {
       await apiRequest('/api/vote', {
         userSessionId,
         userId: user.id,
@@ -390,7 +392,12 @@ function Game() {
                       })}
                     </TaskList>
 
-                    {voted ? <h2>You voted</h2> : <Button onClick={handleVote}>Skip voting</Button>}
+                    {voted ? (
+                      <h2>You voted</h2>
+                    ) : (
+                      <Button onClick={() => handleVote()}>Skip voting</Button>
+                    )}
+
                   </>
                 ) : (
                   <p>Return to Electrical to confer with your crewmates.</p>
@@ -422,10 +429,10 @@ function Game() {
           </Modal>
 
           <Modal show={game?.loss} bg={imposter ? '#71BC78' : "#AA0000"}>
-            <h2>{imposter ? 'VICTORY!' : 'YOU LOSE!'}</h2>
-            <p>The imposter(s) killed all the crewmates.</p>
-
             <Container>
+              <h2>{imposter ? 'VICTORY!' : 'YOU LOSE!'}</h2>
+              <p>The imposter(s) killed all the crewmates.</p>
+
               <Button onClick={handleBackToLobby}>Return to Lobby</Button>
             </Container>
           </Modal>
@@ -437,7 +444,7 @@ function Game() {
 export default Game;
 
 
-const Modal = styled.div`
+export const Modal = styled.div`
   position: absolute;
   top: 0;
   left: 0;
