@@ -32,8 +32,14 @@ export default async function handle(req, res) {
     }
   });
 
-  let { sabotage, sabotage_end } = gameData;
+  let {
+    sabotage,
+    sabotage_end,
+    meeting_end
+  } = gameData;
+
   let sabotageTimer;
+  let meetingTimer;
   let sabotageCooldownTimer;
 
   const now = Date.now();
@@ -41,6 +47,7 @@ export default async function handle(req, res) {
   if (sabotage_end) {
     sabotage_end = parseInt(sabotage_end);
   
+    // Set game to a loss if sabotage expires
     if (sabotage_end < now && sabotage) {
       await prisma.gameSession.update({
         where: {
@@ -64,6 +71,11 @@ export default async function handle(req, res) {
     sabotageTimer = Math.ceil((sabotage_end - now) / 1000);
   }
 
+  if (meeting_end) {
+    meeting_end = parseInt(meeting_end);
+    meetingTimer = Math.ceil((meeting_end - now) / 1000);
+  }
+
   // Generate any kill cooldowns
   gameData.user_sessions.filter(userSession => userSession.imposter)
     .forEach(imposterSession => {
@@ -79,6 +91,7 @@ export default async function handle(req, res) {
   res.json({
     gameData,
     sabotageTimer,
-    sabotageCooldownTimer
+    sabotageCooldownTimer,
+    meetingTimer
   });
 }

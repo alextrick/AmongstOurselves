@@ -41,9 +41,10 @@ function Game() {
   const [ showMap, setShowMap ] = useState(false);
   const [ initialSetup, setInitialSetup ] = useState(false);
   const [ killVerbIndices, setKillVerbIndices ] = useState([]);
-  const [ meeting, setMeeting ] = useState(false);
   const [ sabotage, setSabotage ] = useState();
   const [ sabotageCooldown, setSabotageCooldown] = useState();
+  const [ meetingTimer, setMeetingTimer ] = useState();
+  const [ voted, setVoted ] = useState();
 
   async function handleCompleteTask(taskId) {
     setLoading(true);
@@ -127,6 +128,24 @@ function Game() {
     setLoading(false);
   }
 
+  async function handleVote(userSessionId) {
+    setLoading(true);
+    setVoted(true);
+
+    if (user && userSessionId && session && code) {
+      await apiRequest('/api/vote', {
+        userSessionId,
+        userId: user.id,
+        session,
+        code
+      });
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
+  }
+
   useEffect(() => {
     // Poll game state.
     if (session) {
@@ -140,7 +159,12 @@ function Game() {
         }
 
         setSabotage(sabotageTimer);
-        setSabotageCooldown(sabotageCooldownTimer)
+        setSabotageCooldown(sabotageCooldownTimer);
+        setMeetingTimer(res.meetingTimer);
+
+        if (!res.meetingTimer) {
+          setVoted(false);
+        }
       }, 500);
 
       return () => clearInterval(interval);
@@ -207,10 +231,6 @@ function Game() {
           }
         }
       }
-      // TODO - Swap to meeting screen if active.
-
-      // TODO - Update kill cooldown. Set a datetime when a user is killed and wait for that.
-      // Can use similar logic for meetings / sabotages.
     }
   }, [ game ]);
 
@@ -249,6 +269,18 @@ function Game() {
                               </div>
                             </li>
                           );
+                        } else {
+                          return (
+                            <li key={`user-${sessionUser.id}`}>
+                              <span className="task">Do not kill {sessionUser.name}</span>
+        
+                              <div className="controls">
+                                <button>
+                                  Imposter
+                                </button>
+                              </div>
+                            </li>
+                          );
                         }
                       })}
                     </TaskList>
@@ -282,7 +314,11 @@ function Game() {
                 )}
 
                 {imposter ? (
-                  <Button disabled={sabotageCooldown} onClick={handleSabotage}>{sabotageCooldown || 'SABOTAGE'}</Button>
+                  <Button
+                    disabled={sabotageCooldown}
+                    onClick={handleSabotage}
+                  >{sabotageCooldown || 'SABOTAGE'}
+                  </Button>
                 ) : (
                   <Button onClick={() => setShowMap(true)}>SHOW MAP</Button>
                 )}
@@ -318,10 +354,32 @@ function Game() {
           >
             <Container>
                 <h2>
-                  MEETING!
+                  {meetingTimer ? 'VOTE!' : 'MEETING!'}
                 </h2>
 
-                <p>Return to Electrical to confer with your crewmates.</p>
+                {meetingTimer ? (
+                  <>
+                    <TaskList>
+                      {game.user_sessions?.map((session) => {
+                        const sessionUser = session.user.user;
+    
+                        return (
+                          <li key={`user-${sessionUser.id}`}>
+                            <span className="task">{sessionUser.name}</span>
+      
+                            <div className="controls">
+                              <button disabled={voted} onClick={() => handleVote(session.id)}>
+                                Vote
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </TaskList>
+                  </>
+                ) : (
+                  <p>Return to Electrical to confer with your crewmates.</p>
+                )}
 
                 {isOwner && (
                   <OwnerControls>

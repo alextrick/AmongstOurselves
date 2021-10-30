@@ -6,29 +6,33 @@ export default async function handle(req, res) {
   let { code } = req.body;
 
   // TODO - Cache this query
-  const gameData = await prisma.gameSession.findUnique({
-    where: { id: session },
+  const gameData = await prisma.game.findUnique({
+    where: { code },
     include: {
-      user_sessions: {
-        orderBy: {
-          id: 'asc'
-        },
+      current_session: {
         include: {
-          tasks: {
-            select: {
-              id: true,
-              task: true,
-              complete: true
-            },
+          user_sessions: {
             orderBy: {
               id: 'asc'
+            },
+            include: {
+              tasks: {
+                select: {
+                  id: true,
+                  task: true,
+                  complete: true
+                },
+                orderBy: {
+                  id: 'asc'
+                }
+              },
+              user: {
+                select: { user: true, owner: true },
+              }
             }
           },
-          user: {
-            select: { user: true, owner: true },
-          }
         }
-      },
+      }
     }
   });
 

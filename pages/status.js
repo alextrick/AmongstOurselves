@@ -1,20 +1,30 @@
+import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import styled from 'styled-components'
 import Layout from '../styles/Layout'
 import { Container, Row, Col} from 'styled-bootstrap-grid';
 
 // Lib
-import { apiRequest } from '../lib/helpers';
+import { addToQuery, apiRequest } from '../lib/helpers';
 
 // Styles
 import { Button, Error, Input } from '../styles/shared';
 
 function Status() {
+  const router = useRouter()
   const [ game, setGame ] = useState();
   const [ loading, setLoading ] = useState(false);
   const [ error, setError ] = useState(false);
   const [ code, setCode ] = useState('')
   const [ codeInput, setCodeInput ] = useState('')
+  const [ sabotage, setSabotage ] = useState();
+
+  useEffect(() => {
+    // Get any user details from query params.
+    if (router.query) {
+      setCode(router.query.code);
+    }
+  }, [ router.query ]);
 
   useEffect(() => {
     // Poll game state.
@@ -38,8 +48,8 @@ function Status() {
   async function handleStartMeeting() {
     setLoading(true);
 
-    if (code) {
-      await apiRequest('/api/start_meeting', { code });
+    if (game) {
+      await apiRequest('/api/start_meeting', { session: game.current_session.id });
     } else {
       setError(true);
     }
@@ -75,6 +85,7 @@ function Status() {
       // Redirect to game page if current session.
   }, [ game ]);
 
+  console.log(game?.current_session?.user_sessions)
   return (
     <Layout>
       <Container>
@@ -87,8 +98,9 @@ function Status() {
                   onChange={e => setCodeInput(e.target.value)}
                 />
               </Col>
+
               <Col sm={4}>
-                <Button onClick={() => setCode(codeInput)}>Submit</Button>
+                <Button onClick={() => addToQuery(router, { code: codeInput })}>Submit</Button>
               </Col>
             </Row>
           )}
@@ -96,12 +108,16 @@ function Status() {
             <>
               <h2>{game.code}</h2>
 
-              {game.meeting && (
+              {game && !game.current_session && (
+                <p>Status - In Lobby</p>
+              )}
+
+              {game?.current_session?.meeting && (
                 <>
                   <UserList>
-                    {game.users.map(({ user }) => (
+                    {game.current_session.user_sessions.map(( user ) => (
                         <li key={`user-${user.id}`}>
-                          {user.name} - {user.alive ? 'ALIVE' : 'DEAD'}
+                          {user.user.user.name} - {user.alive ? 'ALIVE' : 'DEAD'}
                         </li>
                     ))}
                   </UserList>
@@ -120,8 +136,6 @@ function Status() {
                   )}
                 </>
               )}
-
-              
             </>
           )}
       </Container>
