@@ -5,7 +5,7 @@ import Layout from '../styles/Layout'
 import { Container, Row, Col} from 'styled-bootstrap-grid';
 
 // Lib
-import { addToQuery, apiRequest } from '../lib/helpers';
+import { addToQuery, apiRequest, HUE_USERNAME, lightsControl, LOCAL_IP } from '../lib/helpers';
 
 // Styles
 import { Button, Error, Input } from '../styles/shared';
@@ -18,6 +18,9 @@ function Status() {
   const [ code, setCode ] = useState('')
   const [ codeInput, setCodeInput ] = useState('')
   const [ sabotage, setSabotage ] = useState();
+  const [ meetingTimer, setMeetingTimer ] = useState();
+  const [ lights, setLights ] = useState();
+  const [ lightsIntervalClear, setLightsIntervalClear ] = useState();
 
   useEffect(() => {
     // Get any user details from query params.
@@ -27,18 +30,30 @@ function Status() {
   }, [ router.query ]);
 
   useEffect(() => {
+    (async function() {
+      const res = await fetch(
+        `http://${LOCAL_IP}/api/${HUE_USERNAME}/lights/`,
+      )
+      const lightIds = Object.keys(await res.json());
+  
+      setLights(lightIds);
+    })();
+  }, []);
+
+  useEffect(() => {
     // Poll game state.
     if (code) {
       const interval = setInterval(async () => {
         const res = await apiRequest('/api/status', { code });
   
-        const { gameData, sabotageTimer } = res; 
+        const { gameData, sabotageTimer, meetingTimer } = res; 
         // Check if game state differs
         if (JSON.stringify(gameData) !== JSON.stringify(game)) {
           setGame(gameData);
         }
 
         setSabotage(sabotageTimer);
+        setMeetingTimer(res.meetingTimer);
       }, 500);
 
       return () => clearInterval(interval);
@@ -59,8 +74,28 @@ function Status() {
 
 
   useEffect(() => {
-      // TODO - Display user list if meeting is active.
-
+    if (game) {
+      if (sabotage) {
+        if (lightsIntervalClear) await lightsIntervalClear();
+        const intervalClear = lightsControl(lights, { hue: 0, sat: 254 }, true);
+  
+        setLightsIntervalClear(intervalClear);
+      } else if (meeting) {
+        if (lightsIntervalClear) await lightsIntervalClear();
+        const intervalClear = lightsControl(lights, { hue: 180, sat: 100 });
+  
+        setLightsIntervalClear(intervalClear);
+        // TODO - Add loss lights
+        // TODO - Add victory lights
+      } else if (game.current_session) {
+        if (lightsIntervalClear) await lightsIntervalClear();
+        const intervalClear = lightsControl(lights, { }, false, true, true);
+  
+        setLightsIntervalClear(intervalClear);
+      } else {
+        // TODO - Set all lights to random
+      }
+    }
       // TODO - Display sabotage screen if that is active?
       // TODO - Play some sort of siren in sabotage is active?
       // TODO - ADD TASK TO DISABLE SABOTAGE.
@@ -73,9 +108,6 @@ function Status() {
 
       // TODO - Display screen for victory / loss
 
-
-      // TODO - MEETING
-
       // TODO - VOTING. VOTE ON PHONE
 
       // TODO - DISPLAY - X WAS / WAS NOT AN IMPOSTER
@@ -85,9 +117,14 @@ function Status() {
       // Redirect to game page if current session.
   }, [ game ]);
 
-  console.log(game?.current_session?.user_sessions)
+  const meeting = game?.current_session?.meeting;
+
+  const bg = meeting ? 'darkcyan' : sabotage ? '#AA0000' : null;
+
+  // console.log(meeting?.votes)
+  // console.log(game?.current_session.user_sessions);
   return (
-    <Layout>
+    <Layout bg={bg}>
       <Container>
           {!code && (
             <Row>
@@ -112,17 +149,35 @@ function Status() {
                 <p>Status - In Lobby</p>
               )}
 
-              {game?.current_session?.meeting && (
+              {meeting && (
                 <>
                   <UserList>
                     {game.current_session.user_sessions.map(( user ) => (
-                        <li key={`user-${user.id}`}>
-                          {user.user.user.name} - {user.alive ? 'ALIVE' : 'DEAD'}
+                        <li key={`user-${user.id}`} data-complete={!user.alive}>
+                          <div className="task">{user.user.user.name} - {user.alive ? 'ALIVE' : 'DEAD'}</div>
+
+                          {meeting && (
+                            <>
+                              <div className="voted-check">
+                                VOTED: {meeting.votes.filter(vote => vote.voter == user.id).length ? 
+                                  `&#10003;` : `&#10060;`
+                                }
+                              </div>
+                              <div className="vote-count">
+                                VOTES: {meeting.votes.filter(vote => vote.voted_for == user.id).length}
+                              </div>
+                            </>
+                          )}
                         </li>
                     ))}
                   </UserList>
 
-                  {!game.meeting_end && (
+                  {meeting.meeting_end ? (
+                    <MeetingStatus>
+                      <h2>Meeting in progress</h2>
+                      <h3>{meetingTimer}</h3>
+                    </ MeetingStatus>
+                  ) : (
                     <div>
                       <Button
                         disabled={loading}
@@ -155,9 +210,25 @@ const UserList = styled.ul`
   li {
     padding: 1rem;
     border-bottom: 2px dashed white;
+    display: flex;
+    justify-content: space-between;
 
     &:last-child {
       border: none;
     }
+
+    &[data-complete="true"] {
+      .task { 
+        text-decoration: line-through;
+      }
+    }
+  }
+`;
+
+const MeetingStatus = styled.div`
+  text-align: center;
+
+  h3 {
+    font-size: 6rem;
   }
 `;

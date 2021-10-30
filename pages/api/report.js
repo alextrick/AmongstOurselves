@@ -8,12 +8,9 @@ export default async function handle(req, res) {
     res.status(400).json({error: "session not provided"});
   }
 
-  await prisma.gameSession.update({
-    where: {
-      id: session
-    },
+  await prisma.meeting.create({
     data: {
-      meeting: true
+      session: { connect: { id: session }},
     }
   });
 

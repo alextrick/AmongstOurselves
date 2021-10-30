@@ -21,7 +21,7 @@ model TaskGameSession {
   // task_id  Int
   task     String
   complete Boolean         @default(false)
-  hidden Boolean         @default(false)
+  hidden   Boolean         @default(false)
 }
 
 model User {
@@ -42,16 +42,33 @@ model UserGameConnection {
 }
 
 model UserGameSession {
-  id         Int                @id @default(autoincrement())
-  session    GameSession        @relation(fields: [session_id], references: [id])
-  session_id Int
-  user       UserGameConnection @relation(fields: [user_id, game_id], references: [user_id, game_id])
-  user_id    Int
-  game_id    String
-  tasks      TaskGameSession[]
-  imposter   Boolean            @default(false)
-  alive      Boolean            @default(true)
+  id                Int                @id @default(autoincrement())
+  session           GameSession        @relation(fields: [session_id], references: [id])
+  session_id        Int
+  user              UserGameConnection @relation(fields: [user_id, game_id], references: [user_id, game_id])
+  user_id           Int
+  game_id           String
+  tasks             TaskGameSession[]
+  imposter          Boolean            @default(false)
+  alive             Boolean            @default(true)
   kill_cooldown_end String?
+  voted             Boolean            @default(false)
+}
+
+model Vote {
+  id         Int     @id @default(autoincrement())
+  voted_for  Int?
+  voter      Int
+  meeting    Meeting @relation(fields: [meeting_id], references: [id])
+  meeting_id Int
+}
+
+model Meeting {
+  id          Int          @id @default(autoincrement())
+  session     GameSession? @relation(fields: [session_id], references: [id])
+  session_id  Int?         @unique
+  votes       Vote[]
+  meeting_end String?
 }
 
 model Game {
@@ -61,17 +78,16 @@ model Game {
 }
 
 model GameSession {
-  id              Int               @id @default(autoincrement())
-  is_active       Boolean           @default(false)
-  game            Game?             @relation(fields: [game_id], references: [code])
-  game_id         String?           @unique
-  user_sessions   UserGameSession[]
-  total_tasks     Int
-  tasks_complete  Int               @default(0)
-  victory         Boolean           @default(false)
-  loss            Boolean           @default(false)
-  sabotage        Boolean           @default(false)
-  sabotage_end    String?
-  meeting  Boolean           @default(false)
-  meeting_end     String?
+  id             Int               @id @default(autoincrement())
+  is_active      Boolean           @default(false)
+  game           Game?             @relation(fields: [game_id], references: [code])
+  game_id        String?           @unique
+  user_sessions  UserGameSession[]
+  total_tasks    Int
+  tasks_complete Int               @default(0)
+  victory        Boolean           @default(false)
+  loss           Boolean           @default(false)
+  sabotage       Boolean           @default(false)
+  sabotage_end   String?
+  meeting        Meeting?
 }

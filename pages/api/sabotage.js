@@ -15,8 +15,10 @@ export default async function handle(req, res) {
 
   await prisma.gameSession.updateMany({
     where: {
-      id: session,
-      meeting: false
+      AND: [
+        { id: session },
+        { meeting: null}
+      ]
     },
     data: {
       sabotage: true,

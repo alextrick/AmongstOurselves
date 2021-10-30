@@ -16,7 +16,11 @@ export default async function handle(req, res) {
       id: session
     },
     data: {
-      meeting_end: (now + MEETING_LENGTH).toString()
+      meeting: {
+        update: {
+          meeting_end: (now + MEETING_LENGTH).toString()
+        }
+      },
     }
   });
 

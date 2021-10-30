@@ -130,14 +130,12 @@ function Game() {
 
   async function handleVote(userSessionId) {
     setLoading(true);
-    setVoted(true);
 
-    if (user && userSessionId && session && code) {
+    if (user && userSessionId && session) {
       await apiRequest('/api/vote', {
         userSessionId,
         userId: user.id,
         session,
-        code
       });
     } else {
       setError(true);
@@ -231,6 +229,13 @@ function Game() {
           }
         }
       }
+    }
+
+    // MEETINGS
+    if (game?.meeting && meetingTimer) {
+      const votedFor = game.meeting.votes.find(vote => vote.voter == user.id);
+
+      setVoted(votedFor)
     }
   }, [ game ]);
 
@@ -360,24 +365,32 @@ function Game() {
                 {meetingTimer ? (
                   // Display vote list
                   <>
+                    <h2>{meetingTimer}</h2>
+
                     <TaskList>
                       {game.user_sessions?.filter(session => session.alive)
-                      .map((session) => {
-                        const sessionUser = session.user.user;
-    
-                        return (
-                          <li key={`user-${sessionUser.id}`}>
-                            <span className="task">{sessionUser.name}</span>
+                        .map((session) => {
+                          const sessionUser = session.user.user;
       
-                            <div className="controls">
-                              <button disabled={voted} onClick={() => handleVote(session.id)}>
-                                Vote
-                              </button>
-                            </div>
-                          </li>
-                        );
+                          return (
+                            <li key={`user-${sessionUser.id}`} data-complete={voted?.voted_for === sessionUser.id}>
+                              <span className="task">{sessionUser.name}</span>
+        
+                              <div className="controls">
+                                <button disabled={voted} onClick={() => handleVote(sessionUser.id)}>
+                                  Vote
+                                </button>
+
+                                <span className="complete-icon">
+                                  &#10003;
+                                </span>
+                              </div>
+                            </li>
+                          );
                       })}
                     </TaskList>
+
+                    {voted ? <h2>You voted</h2> : <Button onClick={handleVote}>Skip voting</Button>}
                   </>
                 ) : (
                   <p>Return to Electrical to confer with your crewmates.</p>

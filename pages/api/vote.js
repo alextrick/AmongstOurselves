@@ -1,22 +1,30 @@
-import { createArrayOfRandomIndices } from '../../lib/helpers';
 import prisma from '../../lib/prisma';
-
-const KILL_COOLDOWN = 30000;
 
 export default async function handle(req, res) {
   // TODO - Auth - also currently all users can send this, lock it down to imposters?
-  let { userSessionId, code, session, userId } = req.body;
+  let { userSessionId, session, userId } = req.body;
 
-  if (!userSessionId || !session) {
-    res.status(400).json({error: "code, session, or userSessionId not provided"});
+  if (!session || !userId) {
+    res.status(400).json({error: "session or userId  not provided"});
   }
 
-  const result = await prisma.userGameSession.update({
+  console.log('userId', userId, 'userSessionId', userSessionId)
+
+  const result = await prisma.gameSession.update({
     where: { 
-      id: userSessionId,
+      id: session,
      },
     data: {
-      voted_for: true
+      meeting: {
+        update: {
+          votes: {
+            create: [{
+              voted_for: userSessionId,
+              voter: userId
+            }]
+          }
+        }
+      }
     },
   });
 

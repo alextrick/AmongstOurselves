@@ -15,43 +15,55 @@ export default async function handle(req, res) {
             orderBy: {
               id: 'asc'
             },
-            include: {
-              tasks: {
-                select: {
-                  id: true,
-                  task: true,
-                  complete: true
-                },
-                orderBy: {
-                  id: 'asc'
-                }
-              },
+            select: {
+              id: true,
+              alive: true,
               user: {
                 select: { user: true, owner: true },
               }
-            }
+            },
           },
+          meeting: {
+            include: {
+              votes: {
+                select: {
+                  voted_for: true,
+                  voter: true
+                }
+              }
+            }
+          }
         }
       }
     }
   });
 
-  let { sabotage, sabotage_end } = gameData;
+  const { current_session } = gameData;
+  let { sabotage, sabotage_end, meeting } = current_session || {};
+
   let sabotageTimer;
+  let meetingTimer;
+
+  const aliveUsers = current_session?.user_sessions?.filter(user => user.alive) || [];
 
   const now = Date.now();
 
   if (sabotage_end) {
     sabotage_end = parseInt(sabotage_end);
   
+    // Set game to loss if sabotage expires
     if (sabotage_end < now && sabotage) {
-      await prisma.gameSession.update({
+      await prisma.game.update({
         where: {
-          id: session
+          code
         },
         data: {
-          loss: true,
-          is_active: false
+          current_session: {
+            update: {
+              loss: true,
+              is_active: false
+            }
+          }
         }
       });
     }
@@ -59,8 +71,38 @@ export default async function handle(req, res) {
     sabotageTimer = Math.ceil((sabotage_end - now) / 1000);
   }
 
+  if (meeting && meeting.meeting_end) {
+    const meeting_end = parseInt(meeting.meeting_end);
+
+    // TODO - Handle meeting summary
+    // TODO - Check for votes.
+    if (
+      // Meeting has expired
+      (meeting_end < now && meeting) ||
+      // All votes have been cast
+      (aliveUsers.length == meeting.votes?.length)
+    ) {
+      // console.log('meeting', meeting)
+      await prisma.game.update({
+        where: {
+          code
+        },
+        data: {
+          current_session: {
+            update: {
+              meeting: { disconnect: true }
+            }
+          }
+        }
+      })
+    }
+
+    meetingTimer = Math.ceil((meeting_end - now) / 1000);
+  }
+
   res.json({
     gameData,
     sabotageTimer,
+    meetingTimer
   });
 }

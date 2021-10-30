@@ -1,3 +1,4 @@
+import { lights } from '../../lib/helpers';
 import prisma from '../../lib/prisma';
 
 const SABOTAGE_COOLDOWN = 120000;
@@ -29,13 +30,20 @@ export default async function handle(req, res) {
           }
         }
       },
+      meeting: {
+        include: {
+          votes: {
+            select: { voted_for: true, voter: true }
+          }
+        }
+      }
     }
   });
 
   let {
     sabotage,
     sabotage_end,
-    meeting_end
+    meeting
   } = gameData;
 
   let sabotageTimer;
@@ -44,21 +52,8 @@ export default async function handle(req, res) {
 
   const now = Date.now();
 
-  if (sabotage_end) {
+  if (sabotage && sabotage_end) {
     sabotage_end = parseInt(sabotage_end);
-  
-    // Set game to a loss if sabotage expires
-    if (sabotage_end < now && sabotage) {
-      await prisma.gameSession.update({
-        where: {
-          id: session
-        },
-        data: {
-          loss: true,
-          is_active: false
-        }
-      });
-    }
 
     // Add minute cooldown between sabotages
     const sabotageAllowedAt = sabotage_end + SABOTAGE_COOLDOWN;
@@ -71,8 +66,8 @@ export default async function handle(req, res) {
     sabotageTimer = Math.ceil((sabotage_end - now) / 1000);
   }
 
-  if (meeting_end) {
-    meeting_end = parseInt(meeting_end);
+  if (meeting && meeting.meeting_end) {
+    const meeting_end = parseInt(meeting.meeting_end);
     meetingTimer = Math.ceil((meeting_end - now) / 1000);
   }
 
