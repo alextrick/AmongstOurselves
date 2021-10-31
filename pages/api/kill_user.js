@@ -50,20 +50,6 @@ export default async function handle(req, res) {
       }
     });
 
-    if (userSessions.length <= 1) {
-      await prisma.gameSession.update({
-        where: {
-          id: session
-        },
-        data: {
-          loss: true,
-          is_active: false
-        }
-      });
-
-      return res.json({});
-    }
-
     const uncompleteTasks = result.tasks.filter(task => !task.complete);
 
     const averageTasksPerUser = Math.ceil(uncompleteTasks.length / userSessions.length)

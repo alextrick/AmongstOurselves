@@ -131,8 +131,6 @@ function Game() {
   async function handleVote(userSessionId) {
     setLoading(true);
 
-    console.log('handleVote')
-
     if (user && session) {
       await apiRequest('/api/vote', {
         userSessionId,
@@ -293,7 +291,7 @@ function Game() {
                     </TaskList>
                   ) : (
                     <TaskList>
-                      {userSession.tasks.map(task => (
+                      {userSession.tasks.filter(task => !task.hidden).map(task => (
                         <li key={`task-${task.id}`} data-complete={task.complete}>
                           <span className="task">{task.task}</span>
 
@@ -310,26 +308,26 @@ function Game() {
                       ))}
                     </TaskList>
                   )}
+
+                  <div className="controls">
+                    {sabotage ? (
+                      <h2>SABOTAGE - {sabotage}</h2> 
+                    ) : (
+                      <Button onClick={handleReport}>REPORT</Button>
+                    )}
+
+                    {imposter ? (
+                      <Button
+                        disabled={sabotageCooldown}
+                        onClick={handleSabotage}
+                      >{sabotageCooldown || 'SABOTAGE'}
+                      </Button>
+                    ) : (
+                      <Button onClick={() => setShowMap(true)}>SHOW MAP</Button>
+                    )}
+                  </div>          
                 </>
               )}
-
-              <div className="controls">
-                {sabotage ? (
-                  <h2>SABOTAGE - {sabotage}</h2> 
-                ) : (
-                  <Button onClick={handleReport}>REPORT</Button>
-                )}
-
-                {imposter ? (
-                  <Button
-                    disabled={sabotageCooldown}
-                    onClick={handleSabotage}
-                  >{sabotageCooldown || 'SABOTAGE'}
-                  </Button>
-                ) : (
-                  <Button onClick={() => setShowMap(true)}>SHOW MAP</Button>
-                )}
-              </div>          
             </>
           )}
 
@@ -356,7 +354,7 @@ function Game() {
 
           {/* This is a mess but running out of time */}
           <Modal
-            show={game?.meeting}
+            show={game?.meeting && userSession.alive}
             bg={'darkcyan'}
           >
             <Container>
@@ -508,6 +506,10 @@ const TaskList = styled.ul`
         transition: opacity 0.4s ease;
         border: none;
         min-width: 6rem;
+        background: white;
+        color: black;
+        padding: 0.25rem;
+        font-weight: 600;
 
         &:disabled {
           background: white;

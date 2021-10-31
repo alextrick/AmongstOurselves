@@ -97,7 +97,6 @@ function Index() {
             <>
               <h2>Welcome {router.query.name}</h2>
 
-              <Col xs={6}>
                 <Input
                   type="text"
                   placeholder="Game code"
@@ -113,15 +112,12 @@ function Index() {
                 >
                   Join Game
                 </Button>
-              </Col>
-              <Col xs={6}>
                 <Button
                   onClick={handleNewGame}
                   disabled={loading}
                 >
                   New Game
                 </Button>
-              </Col>
             </>
           )
             : (

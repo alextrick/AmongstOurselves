@@ -1,29 +1,26 @@
 import { createArrayOfRandomIndices } from '../../lib/helpers';
 import prisma from '../../lib/prisma';
 
-const IMPOSTER_COUNT = 1;
+const IMPOSTER_COUNT = 2;
 const TASK_COUNT = 8;
 const TASKS = [
-  'temp task test',
-  'temp task test 2',
-  'temp task test 3',
-  'temp task test 4',
-  'temp task test 5',
-  'temp task test 6',
-  'temp task test 7',
-  'temp task test 8',
-  'temp task test 9',
-  'temp task test 10',
-  'temp task test 11',
-  'temp task test 12',
-  'temp task test 13',
-  'temp task test 14',
-  'temp task test 15',
-  'temp task test 16',
-  'temp task test 17',
-  'temp task test 18',
-  'temp task test 19',
-  'temp task test 20',
+  '1 - Cafeteria',
+  '2 - Navigation',
+  '3 - Kitchen',
+  '4 - Kitchen',
+  '5 - Upper passageway',
+  '6 - Electrical',
+  '8 - Fuel indoor engines',
+  '7 - Lower passageway',
+  '11 - Med bay',
+  '12 - Launch pad',
+  '13 - Storage',
+  '14 - Launch pad',
+  '15 - Security',
+  '16 - Storage',
+  '17 - Cafeteria',
+  '18 - Navigation',
+  '10 - Electrical',
 ];
 
 

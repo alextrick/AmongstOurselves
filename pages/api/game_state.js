@@ -19,7 +19,8 @@ export default async function handle(req, res) {
             select: {
               id: true,
               task: true,
-              complete: true
+              complete: true,
+              hidden: true
             },
             orderBy: {
               id: 'asc'

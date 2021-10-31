@@ -58,12 +58,15 @@ function Status() {
 
         setSabotage(sabotageTimer);
         setMeetingTimer(res.meetingTimer);
-        setMeetingResult(res.meetingResult);
+        if (res.meetingResult) {
+          setMeetingResult(res.meetingResult);
+        }
       }, 500);
 
       return () => clearInterval(interval);
     }
   }, [ code, game ]);
+
 
   useEffect(() => {
     // Display meeting result for 10 seconds;
@@ -75,6 +78,7 @@ function Status() {
       return () => clearTimeout(timeout);
     }
   }, [meetingResult]);
+
 
   async function handleStartMeeting() {
     setLoading(true);
@@ -88,6 +92,17 @@ function Status() {
     setLoading(false);
   }
 
+  async function handleFixSabotage() {
+    setLoading(true);
+
+    if (game) {
+      await apiRequest('/api/fix_sabotage', { session: game.current_session.id });
+    } else {
+      setError(true);
+    }
+
+    setLoading(false);
+  }
 
   useEffect(() => {
     if (game) {
@@ -100,6 +115,7 @@ function Status() {
       } else if (game.current_session.victory) {
         setGameMode('victory')
       } else if (sabotage) {
+        console.log('?1111')
         setGameMode('sabotage')
       } else if (meeting) {
         setGameMode('meeting')
@@ -136,13 +152,13 @@ function Status() {
     if (lights) {
       switch (gameMode) {
         case 'lobby':
-          lightsControl(lights, { hue: hsbToHue(20), sat: 20, bri: 120 });
+          lightsControl(lights, { hue: hsbToHue(20), sat: 20, bri: 60 });
           break;
         case 'loss':
-          lightsControl(lights, { hue: 0, sat: 255, bri: 150 });
+          lightsControl(lights, { hue: 0, sat: 255, bri: 120 });
           break
         case 'victory':
-          lightsControl(lights, { hue: hsbToHue(126), sat: 150, bri: 150 });
+          lightsControl(lights, { hue: hsbToHue(126), sat: 176, bri: 150 });
           break
         case 'sabotage':
           let on = false;
@@ -154,13 +170,13 @@ function Status() {
           }, 2000);
           break;
         case 'meeting':
-          lightsControl(lights, { hue: hsbToHue(165), sat: 180, bri: 150 });
+          lightsControl(lights, { hue: hsbToHue(165), sat: 180, bri: 80 });
           break;
         case 'tasks':
           lightsControl(lights, { }, true);
           break
         default:
-          lightsControl(lights, { hue: 172, sat: 49, bri: 80});
+          lightsControl(lights, { hue: 172, sat: 49, bri: 75});
       }
     }
 
@@ -266,9 +282,18 @@ function Status() {
             </>
           )}
 
-          <Modal show={meetingResult}>
+          <Modal show={meetingResult && gameMode !== 'victory' && gameMode !== 'loss'} >
             <Container>
               <h2>{meetingResult}</h2>
+            </Container>
+          </Modal>
+
+          <Modal show={sabotage && gameMode !== 'victory' && gameMode !== 'loss'}>
+            <Container>
+              
+              <h2>Sabotage!</h2>
+              <h3>{sabotage}</h3>
+              <Button onClick={handleFixSabotage}>Fix sabotage</Button>
             </Container>
           </Modal>
       </Container>
@@ -306,6 +331,25 @@ const UserList = styled.ul`
 
     .vote-count {
       font-weight: bold;
+    }
+
+    button {
+      transition: opacity 0.4s ease;
+      border: none;
+      min-width: 6rem;
+      background: white;
+      color: black;
+      padding: 0.25rem;
+      font-weight: 600;
+
+      &:disabled {
+        background: white;
+        opacity: 0.5;
+      }
+
+      &:focus {
+        opacity: 0;
+      }
     }
 
     &[data-complete="true"] {
